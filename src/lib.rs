@@ -121,6 +121,18 @@ where
     }
 }
 
+impl<T> SexpOf for Option<T>
+where
+    T: SexpOf,
+{
+    fn sexp_of(&self) -> Sexp {
+        match self {
+            None => list(&[]),
+            Some(value) => list(&[value.sexp_of()]),
+        }
+    }
+}
+
 // Serialization
 
 fn must_escape(data: &[u8]) -> bool {

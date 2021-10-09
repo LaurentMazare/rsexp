@@ -140,3 +140,20 @@ where
         }
     }
 }
+
+impl<T> OfSexp for Option<T>
+where
+    T: OfSexp,
+{
+    fn of_sexp(s: &Sexp) -> Result<Self, IntoSexpError> {
+        match s.extract_list("option")? {
+            [] => Ok(None),
+            [v] => Ok(Some(T::of_sexp(v)?)),
+            l => Err(IntoSexpError::ListLengthMismatch {
+                type_: "option",
+                expected_len: 1,
+                list_len: l.len(),
+            }),
+        }
+    }
+}
