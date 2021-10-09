@@ -4,8 +4,10 @@ extern crate quickcheck;
 #[macro_use(quickcheck)]
 extern crate quickcheck_macros;
 
+mod of_sexp;
 mod parse;
 
+pub use of_sexp::*;
 pub use parse::*;
 use std::io::Write;
 
@@ -16,7 +18,13 @@ pub enum Sexp {
     List(Vec<Sexp>),
 }
 
+// This trait is used to mark types for which using the to/from string
+// conversion is fine.
 pub trait UseToString {}
+
+pub struct BytesSlice<'a>(pub &'a [u8]);
+
+// Conversion from T to sexp.
 
 impl UseToString for u64 {}
 impl UseToString for u32 {}
@@ -40,6 +48,12 @@ impl<T: ToString + UseToString> From<T> for Sexp {
 impl From<&str> for Sexp {
     fn from(s: &str) -> Self {
         Sexp::Atom(s.as_bytes().to_vec())
+    }
+}
+
+impl<'a> From<&BytesSlice<'a>> for Sexp {
+    fn from(s: &BytesSlice<'a>) -> Self {
+        Sexp::Atom(s.0.to_vec())
     }
 }
 
@@ -98,6 +112,8 @@ where
         Sexp::List(map.iter().map(|(k, v)| (k, v).into()).collect())
     }
 }
+
+// Serialization
 
 fn must_escape(data: &[u8]) -> bool {
     if data.is_empty() {

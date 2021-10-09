@@ -31,6 +31,22 @@ struct Bench {
     verbose: bool,
 }
 
+fn cnt_loop(s: &Sexp) -> (usize, usize) {
+    match s {
+        Sexp::Atom(atom) => (1, atom.len()),
+        Sexp::List(list) => {
+            let mut cnt_atoms = 0;
+            let mut cnt_bytes = 0;
+            for elem in list.iter() {
+                let (tmp_atoms, tmp_bytes) = cnt_loop(&elem);
+                cnt_atoms += tmp_atoms;
+                cnt_bytes += tmp_bytes;
+            }
+            (cnt_atoms, cnt_bytes)
+        }
+    }
+}
+
 impl Bench {
     fn run(&self) -> std::io::Result<()> {
         event!(Level::INFO, "reading {}", self.input_filename);
@@ -41,6 +57,14 @@ impl Bench {
             value = rsexp::from_slice(&contents).unwrap();
         }
         event!(Level::INFO, "converted to sexp {} times", self.iterations);
+        let sexp = rsexp::from_slice(&contents).unwrap();
+        let (cnt_atoms, cnt_bytes) = cnt_loop(&sexp);
+        event!(
+            Level::INFO,
+            "found {} atoms, total of {} bytes",
+            cnt_atoms,
+            cnt_bytes
+        );
         for _index in 0..self.iterations {
             let _contents = value.to_bytes();
         }
