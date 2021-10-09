@@ -1,0 +1,17 @@
+[package]
+name = "rsexp-derive"
+version = "0.1.0"
+authors = ["laurent <laurent.mazare@gmail.com>"]
+edition = "2018"
+
+description = "Derive macro for S-expression conversion."
+repository = "https://github.com/LaurentMazare/rsexp"
+keywords = ["S-expression", "macro"]
+license = "MIT/Apache-2.0"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = "1.0"
+quote = "1.0"

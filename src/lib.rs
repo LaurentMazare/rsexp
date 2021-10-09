@@ -12,6 +12,18 @@ pub enum Sexp {
     List(Vec<Sexp>),
 }
 
+pub fn atom(atom: &[u8]) -> Sexp {
+    Sexp::Atom(atom.to_vec())
+}
+
+pub fn list(list: &[Sexp]) -> Sexp {
+    Sexp::List(list.to_vec())
+}
+
+pub trait SexpOf {
+    fn sexp_of(&self) -> Sexp;
+}
+
 // This trait is used to mark types for which using the to/from string
 // conversion is fine.
 pub trait UseToString {}
@@ -33,77 +45,79 @@ impl UseToString for f64 {}
 impl UseToString for f32 {}
 impl UseToString for bool {}
 
-impl<T: ToString + UseToString> From<T> for Sexp {
-    fn from(t: T) -> Self {
-        Sexp::Atom(t.to_string().as_bytes().to_vec())
+impl<T: ToString + UseToString> SexpOf for T {
+    fn sexp_of(&self) -> Sexp {
+        Sexp::Atom(self.to_string().as_bytes().to_vec())
     }
 }
 
-impl From<&str> for Sexp {
-    fn from(s: &str) -> Self {
-        Sexp::Atom(s.as_bytes().to_vec())
+impl SexpOf for &str {
+    fn sexp_of(&self) -> Sexp {
+        Sexp::Atom(self.as_bytes().to_vec())
     }
 }
 
-impl<'a> From<&BytesSlice<'a>> for Sexp {
-    fn from(s: &BytesSlice<'a>) -> Self {
-        Sexp::Atom(s.0.to_vec())
+impl<'a> SexpOf for BytesSlice<'a> {
+    fn sexp_of(&self) -> Sexp {
+        Sexp::Atom(self.0.to_vec())
     }
 }
 
-impl From<String> for Sexp {
-    fn from(s: String) -> Self {
-        Sexp::Atom(s.as_bytes().to_vec())
-    }
-}
-
-impl<'a, T: 'a> From<&'a [T]> for Sexp
+impl<T> SexpOf for [T]
 where
-    &'a T: Into<Sexp>,
+    T: SexpOf,
 {
-    fn from(t: &'a [T]) -> Self {
-        Sexp::List(t.iter().map(|x| x.into()).collect())
+    fn sexp_of(&self) -> Sexp {
+        Sexp::List(self.iter().map(|x| x.sexp_of()).collect())
     }
 }
 
-impl<T1, T2> From<(T1, T2)> for Sexp
+impl<T1, T2> SexpOf for (T1, T2)
 where
-    T1: Into<Sexp>,
-    T2: Into<Sexp>,
+    T1: SexpOf,
+    T2: SexpOf,
 {
-    fn from(t: (T1, T2)) -> Self {
-        Sexp::List(vec![t.0.into(), t.1.into()])
+    fn sexp_of(&self) -> Sexp {
+        Sexp::List(vec![self.0.sexp_of(), self.1.sexp_of()])
     }
 }
 
-impl<T1, T2, T3> From<(T1, T2, T3)> for Sexp
+impl<T1, T2, T3> SexpOf for (T1, T2, T3)
 where
-    T1: Into<Sexp>,
-    T2: Into<Sexp>,
-    T3: Into<Sexp>,
+    T1: SexpOf,
+    T2: SexpOf,
+    T3: SexpOf,
 {
-    fn from(t: (T1, T2, T3)) -> Self {
-        Sexp::List(vec![t.0.into(), t.1.into(), t.2.into()])
+    fn sexp_of(&self) -> Sexp {
+        Sexp::List(vec![self.0.sexp_of(), self.1.sexp_of(), self.2.sexp_of()])
     }
 }
 
-impl<'a, K, V> From<&'a std::collections::HashMap<K, V>> for Sexp
+impl<K, V> SexpOf for std::collections::HashMap<K, V>
 where
-    &'a K: Into<Sexp>,
-    &'a V: Into<Sexp>,
+    K: SexpOf,
+    V: SexpOf,
 {
-    fn from(map: &'a std::collections::HashMap<K, V>) -> Self {
-        Sexp::List(map.iter().map(|(k, v)| (k, v).into()).collect())
+    fn sexp_of(&self) -> Sexp {
+        Sexp::List(
+            self.iter()
+                .map(|(k, v)| list(&[k.sexp_of(), v.sexp_of()]))
+                .collect(),
+        )
     }
 }
 
-impl<'a, K, V> From<&'a std::collections::BTreeMap<K, V>> for Sexp
+impl<K, V> SexpOf for std::collections::BTreeMap<K, V>
 where
-    &'a K: Into<Sexp>,
-    &'a V: Into<Sexp>,
+    K: SexpOf,
+    V: SexpOf,
 {
-    fn from(map: &'a std::collections::BTreeMap<K, V>) -> Self {
-        Sexp::List(map.iter().map(|(k, v)| (k, v).into()).collect())
+    fn sexp_of(&self) -> Sexp {
+        Sexp::List(
+            self.iter()
+                .map(|(k, v)| list(&[k.sexp_of(), v.sexp_of()]))
+                .collect(),
+        )
     }
 }
 

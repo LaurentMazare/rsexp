@@ -5,3 +5,5 @@ S-expression parsing and writing in Rust using [nom](https://github.com/Geal/nom
 [![Latest version](https://img.shields.io/crates/v/rsexp.svg)](https://crates.io/crates/rsexp)
 [![Documentation](https://docs.rs/rsexp/badge.svg)](https://docs.rs/rsexp)
 ![License](https://img.shields.io/crates/l/rsexp.svg)
+
+This implemantion aims at being compatible with OCaml's [sexplib](https://github.com/janestreet/sexplib).
