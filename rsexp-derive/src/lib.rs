@@ -34,7 +34,8 @@ fn impl_sexp_of(ast: &DeriveInput) -> TokenStream {
             syn::Fields::Named(FieldsNamed { named, .. }) => {
                 let fields = named.iter().map(|field| {
                     let name = field.ident.as_ref().unwrap();
-                    quote! { rsexp::list(&[rsexp::atom(b"#name"), self.#name.sexp_of()]) }
+                    let name_str = name.to_string();
+                    quote! { rsexp::list(&[rsexp::atom(#name_str.as_bytes()), self.#name.sexp_of()]) }
                 });
                 quote! {rsexp::list(&[#(#fields),*])}
             }
@@ -58,7 +59,8 @@ fn impl_sexp_of(ast: &DeriveInput) -> TokenStream {
                         let args = named.iter().map(|field| field.ident.as_ref().unwrap());
                         let fields = named.iter().map(|field| {
                             let name = field.ident.as_ref().unwrap();
-                            quote! { rsexp::list(&[rsexp::atom(b"#name"), #name.sexp_of()]) }
+                            let name_str = name.to_string();
+                            quote! { rsexp::list(&[rsexp::atom(#name_str.as_bytes()), #name.sexp_of()]) }
                         });
                         (
                             quote! { { #(#args),* } },
@@ -76,9 +78,10 @@ fn impl_sexp_of(ast: &DeriveInput) -> TokenStream {
                     }
                     syn::Fields::Unit => (quote! {}, quote! {}),
                 };
+                let variant_str = variant_ident.to_string();
                 quote! {
                     #ident::#variant_ident #pattern => {
-                        rsexp::list(&[rsexp::atom(b"#variant_ident"), #fields])
+                        rsexp::list(&[rsexp::atom(#variant_str.as_bytes()), #fields])
                     }
                 }
             });
