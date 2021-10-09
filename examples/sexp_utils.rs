@@ -38,7 +38,7 @@ impl Bench {
         event!(Level::INFO, "read {} bytes", contents.len());
         let mut value = Sexp::List(vec![]);
         for _index in 0..self.iterations {
-            value = rsexp::sexp(&contents).unwrap();
+            value = rsexp::from_slice(&contents).unwrap();
         }
         event!(Level::INFO, "converted to sexp {} times", self.iterations);
         for _index in 0..self.iterations {

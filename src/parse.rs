@@ -2,7 +2,7 @@
 use nom::{
     branch::alt,
     character::complete::char,
-    error::{context, ErrorKind, ParseError, VerboseError},
+    error::{context, Error, ErrorKind, ParseError},
     multi::many0,
     sequence::{delimited, pair, preceded, terminated},
     IResult, InputTake,
@@ -10,7 +10,7 @@ use nom::{
 
 use crate::Sexp;
 
-type Res<T, U> = IResult<T, U, VerboseError<T>>;
+type Res<T, U> = IResult<T, U, Error<T>>;
 
 fn space_or_comments(input: &[u8]) -> Res<&[u8], &[u8]> {
     let mut index = 0;
@@ -37,13 +37,13 @@ fn unquoted_string_(input: &[u8]) -> Res<&[u8], &[u8]> {
                 return Ok(input.take_split(index));
             }
             b'#' if index > 0 && input[index - 1] == b'|' => {
-                return Err(nom::Err::Failure(VerboseError::from_error_kind(
+                return Err(nom::Err::Failure(Error::from_error_kind(
                     input,
                     ErrorKind::Not,
                 )));
             }
             b'|' if index > 0 && input[index - 1] == b'#' => {
-                return Err(nom::Err::Failure(VerboseError::from_error_kind(
+                return Err(nom::Err::Failure(Error::from_error_kind(
                     input,
                     ErrorKind::Not,
                 )));
@@ -58,7 +58,7 @@ fn unquoted_string(input: &[u8]) -> Res<&[u8], Vec<u8>> {
     match unquoted_string_(input) {
         Ok((next_input, atom)) => {
             if atom.is_empty() {
-                Err(nom::Err::Error(VerboseError::from_error_kind(
+                Err(nom::Err::Error(Error::from_error_kind(
                     input,
                     ErrorKind::NonEmpty,
                 )))
@@ -127,7 +127,7 @@ fn quoted_string(input: &[u8]) -> Res<&[u8], Vec<u8>> {
                 index += 1;
                 if index == input.len() {
                     // Unexpected eof
-                    return Err(nom::Err::Failure(VerboseError::from_error_kind(
+                    return Err(nom::Err::Failure(Error::from_error_kind(
                         input,
                         ErrorKind::Eof,
                     )));
@@ -182,7 +182,7 @@ fn quoted_string(input: &[u8]) -> Res<&[u8], Vec<u8>> {
         };
         index += 1;
     }
-    Err(nom::Err::Failure(VerboseError::from_error_kind(
+    Err(nom::Err::Failure(Error::from_error_kind(
         input,
         ErrorKind::Eof,
     )))
@@ -215,37 +215,64 @@ fn sexp_in_list(input: &[u8]) -> Res<&[u8], Sexp> {
 // separated_list combinator does not seem to handle separators that
 // can be empty.
 pub fn sexp_no_leading_blank(input: &[u8]) -> Res<&[u8], Sexp> {
-    context(
-        "sexp",
-        terminated(alt((atom, sexp_in_list)), space_or_comments),
-    )(input)
+    terminated(alt((atom, sexp_in_list)), space_or_comments)(input)
 }
 
-pub fn sexp_(input: &[u8]) -> Res<&[u8], Sexp> {
-    context("sexp", preceded(space_or_comments, sexp_no_leading_blank))(input)
+/// Deserialize a Sexp from bytes, returning both the sexp and the remaining
+/// bytes.
+pub fn from_slice_allow_remaining(input: &[u8]) -> Res<&[u8], Sexp> {
+    preceded(space_or_comments, sexp_no_leading_blank)(input)
 }
 
-pub fn sexp(input: &[u8]) -> Result<Sexp, nom::Err<VerboseError<&[u8]>>> {
-    let (remaining, sexp) = sexp_(input)?;
+/// Deserialize a Sexp from bytes. This fails if there are remaining bytes.
+///
+/// # Example
+///
+/// ```
+///     let sexp = rsexp::from_slice(b"((foo bar)(baz (1 2 3)))").unwrap();
+///     println!("{:?}", sexp);
+///     if let rsexp::Sexp::List(l) = sexp {
+///         assert_eq!(2, l.len());
+///     }
+/// ```
+///
+/// # Errors
+///
+/// This deserialization can fail if the bytes do not follow the expected
+/// sexp format.
+pub fn from_slice(input: &[u8]) -> Result<Sexp, nom::Err<Error<&[u8]>>> {
+    let (remaining, sexp) = from_slice_allow_remaining(input)?;
     if remaining.is_empty() {
         Ok(sexp)
     } else {
-        Err(nom::Err::Failure(VerboseError::from_error_kind(
+        Err(nom::Err::Failure(Error::from_error_kind(
             remaining,
             ErrorKind::Eof,
         )))
     }
 }
 
-pub fn sexps(input: &[u8]) -> Result<Vec<Sexp>, nom::Err<VerboseError<&[u8]>>> {
-    let (remaining, sexps) = context(
-        "sexps",
-        preceded(space_or_comments, many0(sexp_no_leading_blank)),
-    )(input)?;
+/// Deserialize multiple Sexps from bytes. This fails if there are remaining bytes.
+///
+/// # Example
+///
+/// ```
+///   let sexps = rsexp::multi_from_slice(b"(foo bar)(baz (1 2 3))").unwrap();
+///   println!("{:?}", sexps);
+///   assert_eq!(2, sexps.len());
+/// ```
+///
+/// # Errors
+///
+/// This deserialization can fail if the bytes do not follow the expected
+/// sexp format.
+
+pub fn multi_from_slice(input: &[u8]) -> Result<Vec<Sexp>, nom::Err<Error<&[u8]>>> {
+    let (remaining, sexps) = preceded(space_or_comments, many0(sexp_no_leading_blank))(input)?;
     if remaining.is_empty() {
         Ok(sexps)
     } else {
-        Err(nom::Err::Failure(VerboseError::from_error_kind(
+        Err(nom::Err::Failure(Error::from_error_kind(
             remaining,
             ErrorKind::Eof,
         )))
@@ -254,7 +281,7 @@ pub fn sexps(input: &[u8]) -> Result<Vec<Sexp>, nom::Err<VerboseError<&[u8]>>> {
 
 #[cfg(test)]
 mod tests {
-    use crate::Sexp;
+    use crate::{from_slice, multi_from_slice, Sexp};
 
     fn atom(b: &[u8]) -> Sexp {
         Sexp::Atom(b.to_vec())
@@ -266,33 +293,36 @@ mod tests {
 
     #[test]
     fn basic_sexps() {
-        assert_eq!(crate::sexp(b"( ATOM)"), Ok(Sexp::List(vec![atom(b"ATOM")])));
+        assert_eq!(from_slice(b"( ATOM)"), Ok(Sexp::List(vec![atom(b"ATOM")])));
         assert_eq!(
-            crate::sexp(b" ( \"foo bar\"   baz \"x\\\"\") "),
+            from_slice(b" ( \"foo bar\"   baz \"x\\\"\") "),
             Ok(Sexp::List(vec![
                 atom(b"foo bar"),
                 atom(b"baz"),
                 atom(b"x\""),
             ]))
         );
-        assert_eq!(crate::sexp(b"\"\""), Ok(atom(b"")));
-        assert_eq!(crate::sexp(b"\"\\000A\\123\""), Ok(atom(b"\0A\x7B")));
+        assert_eq!(from_slice(b"\"\""), Ok(atom(b"")));
+        assert_eq!(from_slice(b"\"\\000A\\123\""), Ok(atom(b"\0A\x7B")));
         assert_eq!(
-            crate::sexp(b"\"\\000A\\x7B\\x99\\x9Z\""),
+            from_slice(b"\"\\000A\\x7B\\x99\\x9Z\""),
             Ok(atom(b"\0A\x7B\x99\\x9Z"))
         );
-        assert_eq!(crate::sexp(b"( )"), Ok(list(&[])));
-        assert_eq!(crate::sexp(b"()"), Ok(list(&[])));
-        assert_eq!(crate::sexp(b"(())"), Ok(list(&[list(&[])])));
-        assert_eq!(crate::sexp(b"(\"()\")"), Ok(list(&[atom(b"()")])));
-        assert_eq!(crate::sexp(b"(\"\")"), Ok(list(&[atom(b"")])));
-        assert_eq!(crate::sexp(b"\t (\"\")"), Ok(list(&[atom(b"")])));
-        assert_eq!(crate::sexp(b" (\t\"\")"), Ok(list(&[atom(b"")])));
-        assert_eq!(crate::sexps(b""), Ok(vec![]));
-        assert_eq!(crate::sexps(b"()"), Ok(vec![list(&[])]));
-        assert_eq!(crate::sexps(b"(\t\t\t)()"), Ok(vec![list(&[]), list(&[])]));
+        assert_eq!(from_slice(b"( )"), Ok(list(&[])));
+        assert_eq!(from_slice(b"()"), Ok(list(&[])));
+        assert_eq!(from_slice(b"(())"), Ok(list(&[list(&[])])));
+        assert_eq!(from_slice(b"(\"()\")"), Ok(list(&[atom(b"()")])));
+        assert_eq!(from_slice(b"(\"\")"), Ok(list(&[atom(b"")])));
+        assert_eq!(from_slice(b"\t (\"\")"), Ok(list(&[atom(b"")])));
+        assert_eq!(from_slice(b" (\t\"\")"), Ok(list(&[atom(b"")])));
+        assert_eq!(multi_from_slice(b""), Ok(vec![]));
+        assert_eq!(multi_from_slice(b"()"), Ok(vec![list(&[])]));
         assert_eq!(
-            crate::sexps(b"(\"\\\\\\n\")"),
+            multi_from_slice(b"(\t\t\t)()"),
+            Ok(vec![list(&[]), list(&[])])
+        );
+        assert_eq!(
+            multi_from_slice(b"(\"\\\\\\n\")"),
             Ok(vec![list(&[atom(b"\\\n")])])
         );
     }

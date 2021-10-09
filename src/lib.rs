@@ -7,8 +7,9 @@ extern crate quickcheck_macros;
 mod parse;
 
 pub use parse::*;
+use std::io::Write;
 
-// Owned version of the sexp type.
+/// Type for S-expressions using owned values.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Sexp {
     Atom(Vec<u8>),
@@ -113,71 +114,63 @@ fn must_escape(data: &[u8]) -> bool {
     false
 }
 
-fn escape_to_buffer(data: &[u8], buffer: &mut Vec<u8>) {
-    buffer.push(b'"');
+fn write_u8<W: Write>(b: u8, w: &mut W) -> std::io::Result<()> {
+    w.write_all(&[b])
+}
+
+fn write_escaped<W: Write>(data: &[u8], w: &mut W) -> std::io::Result<()> {
+    write_u8(b'"', w)?;
     for &c in data.iter() {
         match c {
-            b'\\' | b'\"' => {
-                buffer.push(b'\\');
-                buffer.push(c);
-            }
-            b'\n' => {
-                buffer.push(b'\\');
-                buffer.push(b'n');
-            }
-            b'\t' => {
-                buffer.push(b'\\');
-                buffer.push(b't');
-            }
-            b'\r' => {
-                buffer.push(b'\\');
-                buffer.push(b'r');
-            }
-            8 => {
-                buffer.push(b'\\');
-                buffer.push(b'b');
-            }
-            b' '..=b'~' => {
-                buffer.push(c);
-            }
-            _ => {
-                buffer.push(b'\\');
-                buffer.push(48 + c / 100);
-                buffer.push(48 + (c / 10) % 10);
-                buffer.push(48 + c % 10);
-            }
+            b'\\' | b'\"' => w.write_all(&[b'\\', c])?,
+            b'\n' => w.write_all(b"\\n")?,
+            b'\t' => w.write_all(b"\\t")?,
+            b'\r' => w.write_all(b"\\r")?,
+            8 => w.write_all(b"\\b")?,
+            b' '..=b'~' => write_u8(c, w)?,
+            _ => w.write_all(&[b'\\', 48 + c / 100, 48 + (c / 10) % 10, 48 + c % 10])?,
         }
     }
-    buffer.push(b'"');
+    write_u8(b'"', w)?;
+    Ok(())
 }
 
 impl Sexp {
-    // TODO: Maybe there is a proper trait for the buffer here?
-    pub fn to_buffer(&self, buffer: &mut Vec<u8>) {
+    /// Serialize a Sexp to a writer.
+    pub fn write<W: Write>(&self, w: &mut W) -> std::io::Result<()> {
         match self {
             Sexp::Atom(v) => {
                 if must_escape(v) {
-                    escape_to_buffer(v, buffer)
+                    write_escaped(v, w)
                 } else {
-                    buffer.extend_from_slice(v)
+                    w.write_all(v)
                 }
             }
             Sexp::List(vec) => {
-                buffer.push(b'(');
+                write_u8(b'(', w)?;
                 for (index, elem) in vec.iter().enumerate() {
                     if index > 0 {
-                        buffer.push(b' ');
+                        write_u8(b' ', w)?;
                     }
-                    elem.to_buffer(buffer);
+                    elem.write(w)?;
                 }
-                buffer.push(b')');
+                write_u8(b')', w)
             }
         }
     }
 
+    /// Serialize a Sexp to a buffer.
+    ///
+    /// # Example
+    ///
+    /// ```
+    ///     let sexp = rsexp::from_slice(b"((foo bar)(baz (1 2 3)))").unwrap();
+    ///     assert_eq!(sexp.to_bytes(), b"((foo bar) (baz (1 2 3)))");
+    /// ```
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut buffer = Vec::new();
-        self.to_buffer(&mut buffer);
+        // This could not fail as the buffer gets extended.
+        self.write(&mut buffer).unwrap();
         buffer
     }
 }
@@ -219,16 +212,16 @@ mod tests {
     }
 
     fn rt(s: &[u8]) -> String {
-        let sexp = crate::sexp(s).unwrap();
+        let sexp = crate::from_slice(s).unwrap();
         let bytes = sexp.to_bytes();
-        assert_eq!(crate::sexp(&bytes).unwrap(), sexp);
+        assert_eq!(crate::from_slice(&bytes).unwrap(), sexp);
         String::from_utf8_lossy(&bytes).to_string()
     }
 
     #[quickcheck]
     fn round_trip(sexp: crate::Sexp) -> bool {
         let bytes = sexp.to_bytes();
-        crate::sexp(&bytes) == Ok(sexp)
+        crate::from_slice(&bytes) == Ok(sexp)
     }
 
     #[test]
