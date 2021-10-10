@@ -8,7 +8,7 @@ pub use sexp_of::*;
 use std::io::Write;
 
 /// Type for S-expressions using owned values.
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum Sexp {
     Atom(Vec<u8>),
     List(Vec<Sexp>),

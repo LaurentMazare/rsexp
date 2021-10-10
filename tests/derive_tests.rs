@@ -1,5 +1,6 @@
 use rsexp::{OfSexp, SexpOf};
 use rsexp_derive::{OfSexp, SexpOf};
+use std::collections::BTreeMap;
 
 fn test_bytes<T: SexpOf>(t: T, bytes: &str) {
     let b = t.sexp_of().to_bytes();
@@ -212,5 +213,41 @@ fn my_enum2() {
             z: "".to_string(),
         }),
         "(G ((x -1) (y ()) (z \"\")))",
+    );
+}
+
+#[derive(OfSexp, SexpOf, Debug, PartialEq, Eq)]
+struct WithVec {
+    x: Vec<(String, i32)>,
+    y: Option<(i32, i32)>,
+    z: Vec<String>,
+    m: BTreeMap<String, (i32, i32)>,
+}
+
+#[test]
+fn with_vec() {
+    let mut m = BTreeMap::new();
+    let wv = WithVec {
+        x: vec![("foo".to_string(), 1337), (" bar".to_string(), 42)],
+        y: Some((98765, -4321)),
+        z: vec![],
+        m: m.clone(),
+    };
+    test_rt(
+        wv,
+        "((x ((foo 1337) (\" bar\" 42))) (y ((98765 -4321))) (z ()) (m ()))",
+    );
+    m.insert("foo".to_string(), (1, 2));
+    m.insert("bar".to_string(), (12, 23));
+    m.insert("foo bar".to_string(), (123, 234));
+    let wv = WithVec {
+        x: vec![("\0".to_string(), 1337), ("xyz123".to_string(), 42)],
+        y: None,
+        z: vec!["a".to_string(), "bcd".to_string()],
+        m,
+    };
+    test_rt(
+        wv,
+        "((x ((\"\\000\" 1337) (xyz123 42))) (y ()) (z (a bcd)) (m ((bar (12 23)) (foo (1 2)) (\"foo bar\" (123 234)))))"
     );
 }

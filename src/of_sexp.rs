@@ -1,5 +1,5 @@
 use crate::{Sexp, UseToString};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 // Conversion from Sexp to T
 
@@ -18,6 +18,10 @@ pub enum IntoSexpError {
     },
     ExpectedPairForMapGotAtom {
         type_: &'static str,
+    },
+    DuplicateKeyInMap {
+        type_: &'static str,
+        key: Option<String>,
     },
     ExpectedPairForMapGotList {
         type_: &'static str,
@@ -110,7 +114,12 @@ impl Sexp {
                 }
                 Sexp::List(list) => match list.as_slice() {
                     [Sexp::Atom(key), value] => {
-                        map.insert(key.as_slice(), value);
+                        if let Some(_) = map.insert(key.as_slice(), value) {
+                            return Err(IntoSexpError::DuplicateKeyInMap {
+                                type_,
+                                key: Some(String::from_utf8_lossy(key).to_string()),
+                            });
+                        }
                     }
                     list => {
                         return Err(IntoSexpError::ExpectedPairForMapGotList {
@@ -239,4 +248,53 @@ impl OfSexp for () {
             }),
         }
     }
+}
+
+macro_rules! of_sexp_map {
+    ($container_name:ident) => {
+        fn of_sexp(s: &Sexp) -> Result<Self, IntoSexpError> {
+            let type_ = stringify!($container_name);
+            let list = s.extract_list(type_)?;
+            let mut map = $container_name::new();
+            for elem in list.iter() {
+                match elem {
+                    Sexp::Atom(_atom) => {
+                        return Err(IntoSexpError::ExpectedPairForMapGotAtom { type_ })
+                    }
+                    Sexp::List(list) => match list.as_slice() {
+                        [key, value] => {
+                            if let Some(_) =
+                                map.insert(OfSexp::of_sexp(key)?, OfSexp::of_sexp(value)?)
+                            {
+                                return Err(IntoSexpError::DuplicateKeyInMap { type_, key: None });
+                            }
+                        }
+                        list => {
+                            return Err(IntoSexpError::ExpectedPairForMapGotList {
+                                type_,
+                                list_len: list.len(),
+                            })
+                        }
+                    },
+                }
+            }
+            Ok(map)
+        }
+    };
+}
+
+impl<K, V> OfSexp for std::collections::HashMap<K, V>
+where
+    K: OfSexp + Eq + std::hash::Hash,
+    V: OfSexp,
+{
+    of_sexp_map!(HashMap);
+}
+
+impl<K, V> OfSexp for BTreeMap<K, V>
+where
+    K: OfSexp + Ord,
+    V: OfSexp,
+{
+    of_sexp_map!(BTreeMap);
 }
