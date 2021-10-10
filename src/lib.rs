@@ -1,8 +1,10 @@
 mod of_sexp;
 mod parse;
+mod sexp_of;
 
 pub use of_sexp::*;
 pub use parse::*;
+pub use sexp_of::*;
 use std::io::Write;
 
 /// Type for S-expressions using owned values.
@@ -18,10 +20,6 @@ pub fn atom(atom: &[u8]) -> Sexp {
 
 pub fn list(list: &[Sexp]) -> Sexp {
     Sexp::List(list.to_vec())
-}
-
-pub trait SexpOf {
-    fn sexp_of(&self) -> Sexp;
 }
 
 // This trait is used to mark types for which using the to/from string
@@ -44,100 +42,6 @@ impl UseToString for usize {}
 impl UseToString for f64 {}
 impl UseToString for f32 {}
 impl UseToString for bool {}
-
-impl<T: ToString + UseToString> SexpOf for T {
-    fn sexp_of(&self) -> Sexp {
-        Sexp::Atom(self.to_string().as_bytes().to_vec())
-    }
-}
-
-impl SexpOf for &str {
-    fn sexp_of(&self) -> Sexp {
-        Sexp::Atom(self.as_bytes().to_vec())
-    }
-}
-
-impl<'a> SexpOf for BytesSlice<'a> {
-    fn sexp_of(&self) -> Sexp {
-        Sexp::Atom(self.0.to_vec())
-    }
-}
-
-impl<T> SexpOf for [T]
-where
-    T: SexpOf,
-{
-    fn sexp_of(&self) -> Sexp {
-        Sexp::List(self.iter().map(|x| x.sexp_of()).collect())
-    }
-}
-
-impl<T1, T2> SexpOf for (T1, T2)
-where
-    T1: SexpOf,
-    T2: SexpOf,
-{
-    fn sexp_of(&self) -> Sexp {
-        Sexp::List(vec![self.0.sexp_of(), self.1.sexp_of()])
-    }
-}
-
-impl<T1, T2, T3> SexpOf for (T1, T2, T3)
-where
-    T1: SexpOf,
-    T2: SexpOf,
-    T3: SexpOf,
-{
-    fn sexp_of(&self) -> Sexp {
-        Sexp::List(vec![self.0.sexp_of(), self.1.sexp_of(), self.2.sexp_of()])
-    }
-}
-
-impl<K, V> SexpOf for std::collections::HashMap<K, V>
-where
-    K: SexpOf,
-    V: SexpOf,
-{
-    fn sexp_of(&self) -> Sexp {
-        Sexp::List(
-            self.iter()
-                .map(|(k, v)| list(&[k.sexp_of(), v.sexp_of()]))
-                .collect(),
-        )
-    }
-}
-
-impl<K, V> SexpOf for std::collections::BTreeMap<K, V>
-where
-    K: SexpOf,
-    V: SexpOf,
-{
-    fn sexp_of(&self) -> Sexp {
-        Sexp::List(
-            self.iter()
-                .map(|(k, v)| list(&[k.sexp_of(), v.sexp_of()]))
-                .collect(),
-        )
-    }
-}
-
-impl<T> SexpOf for Option<T>
-where
-    T: SexpOf,
-{
-    fn sexp_of(&self) -> Sexp {
-        match self {
-            None => list(&[]),
-            Some(value) => list(&[value.sexp_of()]),
-        }
-    }
-}
-
-impl SexpOf for () {
-    fn sexp_of(&self) -> Sexp {
-        list(&[])
-    }
-}
 
 // Serialization
 

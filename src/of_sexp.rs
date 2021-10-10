@@ -157,3 +157,16 @@ where
         }
     }
 }
+
+impl OfSexp for () {
+    fn of_sexp(s: &Sexp) -> Result<Self, IntoSexpError> {
+        match s.extract_list("()")? {
+            [] => Ok(()),
+            l => Err(IntoSexpError::ListLengthMismatch {
+                type_: "()",
+                expected_len: 0,
+                list_len: l.len(),
+            }),
+        }
+    }
+}
