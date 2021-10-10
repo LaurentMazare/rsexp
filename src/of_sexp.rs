@@ -1,4 +1,5 @@
 use crate::{Sexp, UseToString};
+use std::collections::HashMap;
 
 // Conversion from Sexp to T
 
@@ -15,6 +16,13 @@ pub enum IntoSexpError {
     ExpectedListGotAtom {
         type_: &'static str,
     },
+    ExpectedPairForMapGotAtom {
+        type_: &'static str,
+    },
+    ExpectedPairForMapGotList {
+        type_: &'static str,
+        list_len: usize,
+    },
     ListLengthMismatch {
         type_: &'static str,
         expected_len: usize,
@@ -29,7 +37,7 @@ pub enum IntoSexpError {
     },
     ExtraFieldsInStruct {
         type_: &'static str,
-        fields: Vec<&'static str>,
+        extra_fields: Vec<String>,
     },
     UnknownConstructorForEnum {
         type_: &'static str,
@@ -62,11 +70,43 @@ impl Sexp {
             }),
         }
     }
-    pub fn extract_list<'a>(&'a self, type_: &'static str) -> Result<&'a [Sexp], IntoSexpError> {
+
+    pub fn extract_list<'a>(&'a self, type_: &'static str) -> Result<&'a [Self], IntoSexpError> {
         match self {
             Sexp::List(list) => Ok(list),
             Sexp::Atom(_) => Err(IntoSexpError::ExpectedListGotAtom { type_ }),
         }
+    }
+
+    pub fn extract_map<'a>(
+        &'a self,
+        type_: &'static str,
+    ) -> Result<HashMap<&[u8], &Self>, IntoSexpError> {
+        let mut map = HashMap::new();
+        match self {
+            Sexp::List(list) => {
+                for elem in list.iter() {
+                    match elem {
+                        Sexp::Atom(_atom) => {
+                            return Err(IntoSexpError::ExpectedPairForMapGotAtom { type_ })
+                        }
+                        Sexp::List(list) => match list.as_slice() {
+                            [Sexp::Atom(key), value] => {
+                                map.insert(key.as_slice(), value);
+                            }
+                            list => {
+                                return Err(IntoSexpError::ExpectedPairForMapGotList {
+                                    type_,
+                                    list_len: list.len(),
+                                })
+                            }
+                        },
+                    }
+                }
+            }
+            Sexp::Atom(_) => return Err(IntoSexpError::ExpectedListGotAtom { type_ }),
+        };
+        Ok(map)
     }
 }
 

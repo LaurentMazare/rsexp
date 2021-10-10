@@ -146,8 +146,8 @@ fn impl_of_sexp(ast: &DeriveInput) -> TokenStream {
                     let name = field.ident.as_ref().unwrap();
                     let name_str = name.to_string();
                     quote! {
-                        let #name = match __map.remove(#name_str) {
-                            Some(sexp) => sexp,
+                        let #name = match __map.remove(#name_str.as_bytes()) {
+                            Some(sexp) => rsexp::OfSexp::of_sexp(sexp)?,
                             None => return Err(rsexp::IntoSexpError::MissingFieldsInStruct {
                                 type_: #ident_str,
                                 field: #name_str,
@@ -156,13 +156,13 @@ fn impl_of_sexp(ast: &DeriveInput) -> TokenStream {
                     }
                 });
                 quote! {
-                    let mut __map: std::collections::HashMap<String, Sexp> = __s.of_sexp();
+                    let mut __map: std::collections::HashMap<&[u8], &rsexp::Sexp> = __s.extract_map(#ident_str)?;
                     #(#mk_fields)*
                     if !__map.is_empty() {
-                        let fields = __map.into_keys().collect();
+                        let extra_fields = __map.into_keys().map(|x| String::from_utf8_lossy(x).to_string()).collect();
                         return Err(rsexp::IntoSexpError::ExtraFieldsInStruct {
                             type_: #ident_str,
-                            fields,
+                            extra_fields,
                         })
                     }
                     Ok(#ident { #(#fields),* })

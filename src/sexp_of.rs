@@ -10,6 +10,12 @@ impl<T: ToString + UseToString> SexpOf for T {
     }
 }
 
+impl SexpOf for String {
+    fn sexp_of(&self) -> Sexp {
+        atom(self.as_bytes())
+    }
+}
+
 impl SexpOf for &str {
     fn sexp_of(&self) -> Sexp {
         atom(self.as_bytes())

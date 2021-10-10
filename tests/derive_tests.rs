@@ -49,7 +49,7 @@ fn breakfast2() {
     );
 }
 
-#[derive(SexpOf, Debug, PartialEq)]
+#[derive(OfSexp, SexpOf, Debug, PartialEq)]
 struct Breakfasts {
     pancakes: Pancakes,
     more_pancakes: Option<MorePancakes>,
@@ -59,7 +59,7 @@ struct Breakfasts {
 
 #[test]
 fn breakfast3() {
-    test_bytes(
+    test_rt_no_eq(
         Breakfasts {
             pancakes: Pancakes(12345),
             more_pancakes: Some(MorePancakes(12, 3.141592, Some(1234567890123))),
@@ -67,6 +67,36 @@ fn breakfast3() {
             value2: (3.14159265358979, 2.71828182846),
         },
         "((pancakes (12345)) (more_pancakes ((12 3.141592 (1234567890123)))) (value1 987654321) (value2 (3.14159265358979 2.71828182846)))",
+    );
+}
+
+#[derive(OfSexp, SexpOf, Debug, PartialEq, Eq)]
+struct BreakfastsEq {
+    pancakes: Pancakes,
+    more_pancakes: Option<String>,
+    value1: i32,
+    value2: (i64, i64),
+}
+
+#[test]
+fn breakfast4() {
+    test_rt(
+        BreakfastsEq {
+            pancakes: Pancakes(12345),
+            more_pancakes: Some("foo".to_string()),
+            value1: 987654321,
+            value2: (314159265358979, 271828182846),
+        },
+        "((pancakes (12345)) (more_pancakes (foo)) (value1 987654321) (value2 (314159265358979 271828182846)))",
+    );
+    test_rt(
+        BreakfastsEq {
+            pancakes: Pancakes(12345),
+            more_pancakes: None,
+            value1: 987654321,
+            value2: (314159265358979, 271828182846),
+        },
+        "((pancakes (12345)) (more_pancakes ()) (value1 987654321) (value2 (314159265358979 271828182846)))",
     );
 }
 
