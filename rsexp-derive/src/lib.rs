@@ -2,7 +2,7 @@
 // It might be more efficient to write a direct serialization/deserialization deriver,
 // directly or via serde.
 //
-// TODO: support sexp.option, default values etc.
+// TODO: support sexp.option, default values, allow extra fields, etc.
 extern crate proc_macro;
 
 use proc_macro::TokenStream;
@@ -56,8 +56,8 @@ fn impl_sexp_of(ast: &DeriveInput) -> TokenStream {
         syn::Data::Enum(DataEnum { variants, .. }) => {
             let cases = variants.iter().map(|variant| {
                 let variant_ident = &variant.ident;
-                let variant_str = variant_ident.to_string();
-                let cstor = quote! { rsexp::atom(#variant_str.as_bytes()) };
+                let variant_bytes = syn::LitByteStr::new(variant_ident.to_string().as_bytes(), variant_ident.span());
+                let cstor = quote! { rsexp::atom(#variant_bytes) };
                 let (pattern, sexp) = match &variant.fields {
                     syn::Fields::Named(FieldsNamed { named, .. }) => {
                         let args = named.iter().map(|field| field.ident.as_ref().unwrap());
@@ -122,6 +122,63 @@ pub fn of_sexp_derive(input: TokenStream) -> TokenStream {
     impl_of_sexp(&ast)
 }
 
+// This assumes that __fields has been defined as a &[Sexp]
+fn impl_named_struct_of_sexp(
+    fields_named: &syn::FieldsNamed,
+    output_ident: proc_macro2::TokenStream,
+) -> proc_macro2::TokenStream {
+    let named = &fields_named.named;
+    let ident_str = output_ident.to_string();
+    let fields = named.iter().map(|field| field.ident.as_ref().unwrap());
+    let mk_fields = named.iter().map(|field| {
+        let name = field.ident.as_ref().unwrap();
+        let name_str = name.to_string();
+        quote! {
+            let #name = match __map.remove(#name_str.as_bytes()) {
+                Some(sexp) => rsexp::OfSexp::of_sexp(sexp)?,
+                None => return Err(rsexp::IntoSexpError::MissingFieldsInStruct {
+                    type_: #ident_str,
+                    field: #name_str,
+                })
+            };
+        }
+    });
+    quote! {
+        let mut __map: std::collections::HashMap<&[u8], &rsexp::Sexp> = rsexp::Sexp::extract_map(__fields, #ident_str)?;
+        #(#mk_fields)*
+        if !__map.is_empty() {
+            let extra_fields = __map.into_keys().map(|x| String::from_utf8_lossy(x).to_string()).collect();
+            return Err(rsexp::IntoSexpError::ExtraFieldsInStruct {
+                type_: #ident_str,
+                extra_fields,
+            })
+        }
+        Ok(#output_ident { #(#fields),* })
+    }
+}
+
+fn impl_unnamed_struct_of_sexp(
+    fields_unnamed: &syn::FieldsUnnamed,
+    output_ident: proc_macro2::TokenStream,
+) -> proc_macro2::TokenStream {
+    let unnamed = &fields_unnamed.unnamed;
+    let ident_str = output_ident.to_string();
+
+    let num_fields = unnamed.len();
+    let fields = (0..num_fields).map(|index| format_ident!("__field{}", index));
+    let fields_ = fields.clone();
+    let fields_list = quote! { #(rsexp::OfSexp::of_sexp(#fields)?),*};
+    quote! {
+        match __fields {
+            [#(#fields_,)*] => Ok(#output_ident(#fields_list)),
+            l => Err(rsexp::IntoSexpError::ListLengthMismatch {
+                type_: #ident_str,
+                expected_len: #num_fields,
+                list_len: l.len(),
+            }),
+        }
+    }
+}
 fn impl_of_sexp(ast: &DeriveInput) -> TokenStream {
     let DeriveInput {
         ident,
@@ -140,101 +197,52 @@ fn impl_of_sexp(ast: &DeriveInput) -> TokenStream {
 
     let of_sexp_fn = match data {
         syn::Data::Struct(s) => match &s.fields {
-            syn::Fields::Named(FieldsNamed { named, .. }) => {
-                let fields = named.iter().map(|field| field.ident.as_ref().unwrap());
-                let mk_fields = named.iter().map(|field| {
-                    let name = field.ident.as_ref().unwrap();
-                    let name_str = name.to_string();
-                    quote! {
-                        let #name = match __map.remove(#name_str.as_bytes()) {
-                            Some(sexp) => rsexp::OfSexp::of_sexp(sexp)?,
-                            None => return Err(rsexp::IntoSexpError::MissingFieldsInStruct {
-                                type_: #ident_str,
-                                field: #name_str,
-                            })
-                        };
-                    }
-                });
+            syn::Fields::Named(f) => {
+                let result = impl_named_struct_of_sexp(&f, quote! {#ident});
                 quote! {
-                    let mut __map: std::collections::HashMap<&[u8], &rsexp::Sexp> = __s.extract_map(#ident_str)?;
-                    #(#mk_fields)*
-                    if !__map.is_empty() {
-                        let extra_fields = __map.into_keys().map(|x| String::from_utf8_lossy(x).to_string()).collect();
-                        return Err(rsexp::IntoSexpError::ExtraFieldsInStruct {
-                            type_: #ident_str,
-                            extra_fields,
-                        })
-                    }
-                    Ok(#ident { #(#fields),* })
+                    let __fields = __s.extract_list(#ident_str)?;
+                    #result
                 }
             }
-            syn::Fields::Unnamed(FieldsUnnamed { unnamed, .. }) => {
-                let num_fields = unnamed.len();
-                let fields = (0..num_fields).map(|index| format_ident!("__field{}", index));
-                let fields_ = fields.clone();
-                let fields_list = quote! { #(rsexp::OfSexp::of_sexp(#fields)?),*};
+            syn::Fields::Unnamed(f) => {
+                let result = impl_unnamed_struct_of_sexp(&f, quote! {#ident});
                 quote! {
-                    match __s.extract_list(#ident_str)? {
-                        [#(#fields_,)*] => Ok(#ident(#fields_list)),
-                        l => Err(rsexp::IntoSexpError::ListLengthMismatch {
-                            type_: #ident_str,
-                            expected_len: #num_fields,
-                            list_len: l.len(),
-                        }),
-                    }
+                    let __fields = __s.extract_list(#ident_str)?;
+                    #result
                 }
             }
-            syn::Fields::Unit => unimplemented!(),
+            syn::Fields::Unit => quote! {#ident},
         },
         syn::Data::Enum(DataEnum { variants, .. }) => {
-            let cases = variants.iter().enumerate().map(|(variant_index, variant)| {
+            let cases = variants.iter().map(|variant| {
                 let variant_ident = &variant.ident;
-                let (mk_fields, fields) = match &variant.fields {
-                    syn::Fields::Named(FieldsNamed { named, .. }) => {
-                        let fields = named.iter().map(|field| field.ident.as_ref().unwrap());
-                        let mk_fields = named.iter().map(|field| {
-                            let name = field.ident.as_ref().unwrap();
-                            quote! { let #name = of_sexp()?; }
-                        });
-                        (quote! { #(#mk_fields)* }, quote! { { #(#fields),* } })
+                let variant_bytes = syn::LitByteStr::new(
+                    variant_ident.to_string().as_bytes(),
+                    variant_ident.span(),
+                );
+                let branch = match &variant.fields {
+                    syn::Fields::Named(f) => {
+                        impl_named_struct_of_sexp(&f, quote! {#ident::#variant_ident})
                     }
-                    syn::Fields::Unnamed(FieldsUnnamed { unnamed, .. }) => {
-                        let num_fields = unnamed.len();
-                        let fields = (0..num_fields).map(|index| format_ident!("__field{}", index));
-                        let mk_fields = (0..num_fields).map(|index| {
-                            let ident = format_ident!("__field{}", index);
-                            quote! { let #ident = of_sexp()?; }
-                        });
-                        (quote! { #(#mk_fields)* }, quote! { (#(#fields),*) })
+                    syn::Fields::Unnamed(f) => {
+                        impl_unnamed_struct_of_sexp(&f, quote! {#ident::#variant_ident})
                     }
-                    syn::Fields::Unit => (quote! {}, quote! {}),
+                    syn::Fields::Unit => quote! {#ident::#variant_ident},
                 };
                 quote! {
-                    #variant_index => {
-                        #mk_fields
-                        Ok(#ident::#variant_ident #fields)
+                    (#variant_bytes, __fields) => {
+                        #branch
                     }
                 }
             });
             quote! {
-                match __s {
-                    #(#cases)*
-                    rsexp::Sexp::Atom(atom) =>
-                        Err(rsexp::IntoSexpError::UnknownConstructorForEnum {
-                            type_: #ident_str,
-                            constructor: String::from_utf8_lossy(atom),
-                        }),
-                    rsexp::Sexp::List(l) if l.is_empty() => Err(rsexp::IntoSexpError::NotAConstructorForEnum { type_: #ident_str })
-                    rsexp::Sexp::List(l) => {
-                        match l[0] {
-                            rsexp::Sexp::Atom(atom) =>
-                                Err(rsexp::IntoSexpError::UnknownConstructorForEnum {
-                                    type_: #ident_str,
-                                    constructor: String::from_utf8_lossy(atom),
-                                }),
-                            _ => Err(rsexp::IntoSexpError::NotAConstructorForEnum { type_: #ident_str })
-                        }
-                    }
+            match __s.extract_enum(#ident_str)? {
+                #(#cases)*
+                (ctor, _) =>
+                    Err(rsexp::IntoSexpError::UnknownConstructorForEnum {
+                        type_: #ident_str,
+                        constructor: String::from_utf8_lossy(ctor).to_string(),
+                    }),
                 }
             }
         }

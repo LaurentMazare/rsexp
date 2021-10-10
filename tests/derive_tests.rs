@@ -122,7 +122,7 @@ fn breakfast4() {
 // utop # C 42 |> sexp_of_t |> Sexp.to_string;;
 // - : string = "(C 42)"
 
-#[derive(SexpOf, Debug, PartialEq)]
+#[derive(OfSexp, SexpOf, Debug, PartialEq, Eq)]
 struct PairInt(i64, i64);
 
 #[derive(SexpOf, Debug, PartialEq)]
@@ -160,5 +160,57 @@ fn my_enum() {
     test_bytes(
         MyEnum::H("foo", " needs escaping\n"),
         "(H foo \" needs escaping\\n\")",
+    );
+}
+
+#[derive(OfSexp, SexpOf, Debug, PartialEq, Eq)]
+struct StructXYZ {
+    x: i64,
+    y: Option<(i32, i32)>,
+    z: String,
+}
+
+#[derive(OfSexp, SexpOf, Debug, PartialEq, Eq)]
+enum MyEnum2 {
+    A(),
+    AEmptyStruct {},
+    B(()),
+    C(i64),
+    D(i64, i64),
+    E(PairInt),
+    F { x: i64, y: String },
+    G(StructXYZ),
+}
+
+#[test]
+fn my_enum2() {
+    test_rt(MyEnum2::A(), "A");
+    test_rt(MyEnum2::AEmptyStruct {}, "AEmptyStruct");
+    test_rt(MyEnum2::B(()), "(B ())");
+    test_rt(MyEnum2::C(42), "(C 42)");
+    test_rt(MyEnum2::D(42, 1337), "(D 42 1337)");
+    test_rt(MyEnum2::E(PairInt(42, 1337)), "(E (42 1337))");
+    test_rt(
+        MyEnum2::F {
+            x: -1,
+            y: "foo bar\x7F".to_string(),
+        },
+        "(F (x -1) (y \"foo bar\\127\"))",
+    );
+    test_rt(
+        MyEnum2::G(StructXYZ {
+            x: -1,
+            y: Some((12345, 678910)),
+            z: "test\"".to_string(),
+        }),
+        "(G ((x -1) (y ((12345 678910))) (z \"test\\\"\")))",
+    );
+    test_bytes(
+        MyEnum2::G(StructXYZ {
+            x: -1,
+            y: None,
+            z: "".to_string(),
+        }),
+        "(G ((x -1) (y ()) (z \"\")))",
     );
 }

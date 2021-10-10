@@ -43,7 +43,10 @@ pub enum IntoSexpError {
         type_: &'static str,
         constructor: String,
     },
-    NotAConstructorForEnum {
+    ExpectedConstructorGotEmptyList {
+        type_: &'static str,
+    },
+    ExpectedConstructorGotListInList {
         type_: &'static str,
     },
 }
@@ -78,34 +81,46 @@ impl Sexp {
         }
     }
 
-    pub fn extract_map<'a>(
+    /// Extracts the constructor and fields for an Enum.
+    pub fn extract_enum<'a>(
         &'a self,
         type_: &'static str,
-    ) -> Result<HashMap<&[u8], &Self>, IntoSexpError> {
-        let mut map = HashMap::new();
+    ) -> Result<(&'a [u8], &'a [Self]), IntoSexpError> {
         match self {
-            Sexp::List(list) => {
-                for elem in list.iter() {
-                    match elem {
-                        Sexp::Atom(_atom) => {
-                            return Err(IntoSexpError::ExpectedPairForMapGotAtom { type_ })
-                        }
-                        Sexp::List(list) => match list.as_slice() {
-                            [Sexp::Atom(key), value] => {
-                                map.insert(key.as_slice(), value);
-                            }
-                            list => {
-                                return Err(IntoSexpError::ExpectedPairForMapGotList {
-                                    type_,
-                                    list_len: list.len(),
-                                })
-                            }
-                        },
-                    }
-                }
+            Sexp::Atom(ref atom) => Ok((atom, &[])),
+            Sexp::List(list) if list.is_empty() => {
+                Err(IntoSexpError::ExpectedConstructorGotEmptyList { type_ })
             }
-            Sexp::Atom(_) => return Err(IntoSexpError::ExpectedListGotAtom { type_ }),
-        };
+            Sexp::List(ref list) => match list[0] {
+                Sexp::Atom(ref atom) => Ok((atom, &list[1..])),
+                Sexp::List(_) => Err(IntoSexpError::ExpectedConstructorGotListInList { type_ }),
+            },
+        }
+    }
+
+    pub fn extract_map<'a>(
+        list: &'a [Self],
+        type_: &'static str,
+    ) -> Result<HashMap<&'a [u8], &'a Self>, IntoSexpError> {
+        let mut map = HashMap::new();
+        for elem in list.iter() {
+            match elem {
+                Sexp::Atom(_atom) => {
+                    return Err(IntoSexpError::ExpectedPairForMapGotAtom { type_ })
+                }
+                Sexp::List(list) => match list.as_slice() {
+                    [Sexp::Atom(key), value] => {
+                        map.insert(key.as_slice(), value);
+                    }
+                    list => {
+                        return Err(IntoSexpError::ExpectedPairForMapGotList {
+                            type_,
+                            list_len: list.len(),
+                        })
+                    }
+                },
+            }
+        }
         Ok(map)
     }
 }
