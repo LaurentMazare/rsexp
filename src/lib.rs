@@ -133,6 +133,12 @@ where
     }
 }
 
+impl SexpOf for () {
+    fn sexp_of(&self) -> Sexp {
+        list(&[])
+    }
+}
+
 // Serialization
 
 fn must_escape(data: &[u8]) -> bool {

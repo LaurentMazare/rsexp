@@ -54,7 +54,9 @@ fn impl_sexp_of(ast: &DeriveInput) -> TokenStream {
         syn::Data::Enum(DataEnum { variants, .. }) => {
             let cases = variants.iter().map(|variant| {
                 let variant_ident = &variant.ident;
-                let (pattern, fields) = match &variant.fields {
+                let variant_str = variant_ident.to_string();
+                let cstor = quote! { rsexp::atom(#variant_str.as_bytes()) };
+                let (pattern, sexp) = match &variant.fields {
                     syn::Fields::Named(FieldsNamed { named, .. }) => {
                         let args = named.iter().map(|field| field.ident.as_ref().unwrap());
                         let fields = named.iter().map(|field| {
@@ -62,33 +64,36 @@ fn impl_sexp_of(ast: &DeriveInput) -> TokenStream {
                             let name_str = name.to_string();
                             quote! { rsexp::list(&[rsexp::atom(#name_str.as_bytes()), #name.sexp_of()]) }
                         });
-                        (
-                            quote! { { #(#args),* } },
-                            quote! { rsexp::list(&[#(#fields),*]) },
-                        )
+                        let sexp =
+                            if variant.fields.is_empty() {
+                                quote! { #cstor }
+                            } else {
+                                quote! { rsexp::list(&[#cstor, #(#fields),*]) }
+                            };
+                        (quote! { { #(#args),* } }, sexp)
                     }
                     syn::Fields::Unnamed(FieldsUnnamed { unnamed, .. }) => {
                         let num_fields = unnamed.len();
                         let args = (0..num_fields).map(|index| format_ident!("arg{}", index));
-                        let fields = args.clone().map(|arg| quote! { #(#arg.sexp_of()) });
-                        (
-                            quote! { (#(#args),*) },
-                            quote! { rsexp::list(&[#(#fields),*]) },
-                        )
+                        let fields = args.clone().map(|arg| quote! { #arg.sexp_of() });
+                        let sexp =
+                            if num_fields == 0 {
+                                quote! { #cstor }
+                            } else {
+                                quote! { rsexp::list(&[#cstor, #(#fields),*]) }
+                            };
+                        (quote! { (#(#args),*) }, sexp)
                     }
-                    syn::Fields::Unit => (quote! {}, quote! {}),
+                    syn::Fields::Unit => (quote! {}, quote! { #cstor }),
                 };
-                let variant_str = variant_ident.to_string();
                 quote! {
-                    #ident::#variant_ident #pattern => {
-                        rsexp::list(&[rsexp::atom(#variant_str.as_bytes()), #fields])
-                    }
+                    #ident::#variant_ident #pattern => { #sexp }
                 }
             });
             quote! {
                 match self {
                     #(#cases)*
-                };
+                }
             }
         }
         syn::Data::Union(DataUnion { union_token, .. }) => {
