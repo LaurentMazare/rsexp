@@ -114,7 +114,7 @@ impl Sexp {
                 }
                 Sexp::List(list) => match list.as_slice() {
                     [Sexp::Atom(key), value] => {
-                        if let Some(_) = map.insert(key.as_slice(), value) {
+                        if map.insert(key.as_slice(), value).is_some() {
                             return Err(IntoSexpError::DuplicateKeyInMap {
                                 type_,
                                 key: Some(String::from_utf8_lossy(key).to_string()),
@@ -263,8 +263,9 @@ macro_rules! of_sexp_map {
                     }
                     Sexp::List(list) => match list.as_slice() {
                         [key, value] => {
-                            if let Some(_) =
-                                map.insert(OfSexp::of_sexp(key)?, OfSexp::of_sexp(value)?)
+                            if map
+                                .insert(OfSexp::of_sexp(key)?, OfSexp::of_sexp(value)?)
+                                .is_some()
                             {
                                 return Err(IntoSexpError::DuplicateKeyInMap { type_, key: None });
                             }
