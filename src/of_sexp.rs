@@ -23,6 +23,21 @@ pub enum IntoSexpError {
     StringConversionError {
         err: String,
     },
+    MissingFieldsInStruct {
+        type_: &'static str,
+        field: &'static str,
+    },
+    ExtraFieldsInStruct {
+        type_: &'static str,
+        fields: Vec<&'static str>,
+    },
+    UnknownConstructorForEnum {
+        type_: &'static str,
+        constructor: String,
+    },
+    NotAConstructorForEnum {
+        type_: &'static str,
+    },
 }
 
 impl From<std::str::Utf8Error> for IntoSexpError {
@@ -38,7 +53,7 @@ impl From<std::string::FromUtf8Error> for IntoSexpError {
 }
 
 impl Sexp {
-    fn extract_atom<'a>(&'a self, type_: &'static str) -> Result<&'a [u8], IntoSexpError> {
+    pub fn extract_atom<'a>(&'a self, type_: &'static str) -> Result<&'a [u8], IntoSexpError> {
         match self {
             Sexp::Atom(atom) => Ok(atom),
             Sexp::List(list) => Err(IntoSexpError::ExpectedAtomGotList {
@@ -47,7 +62,7 @@ impl Sexp {
             }),
         }
     }
-    fn extract_list<'a>(&'a self, type_: &'static str) -> Result<&'a [Sexp], IntoSexpError> {
+    pub fn extract_list<'a>(&'a self, type_: &'static str) -> Result<&'a [Sexp], IntoSexpError> {
         match self {
             Sexp::List(list) => Ok(list),
             Sexp::Atom(_) => Err(IntoSexpError::ExpectedListGotAtom { type_ }),

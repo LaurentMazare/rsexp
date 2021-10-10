@@ -1,32 +1,49 @@
-use rsexp::SexpOf;
-use rsexp_derive::SexpOf;
+use rsexp::{OfSexp, SexpOf};
+use rsexp_derive::{OfSexp, SexpOf};
 
 fn test_bytes<T: SexpOf>(t: T, bytes: &str) {
     let b = t.sexp_of().to_bytes();
     assert_eq!(std::str::from_utf8(&b).unwrap(), bytes)
 }
 
-#[derive(SexpOf, Debug, PartialEq, Eq)]
+fn test_rt<T: SexpOf + OfSexp + std::fmt::Debug + Eq>(t: T, bytes: &str) {
+    let sexp = t.sexp_of();
+    let b = sexp.to_bytes();
+    assert_eq!(std::str::from_utf8(&b).unwrap(), bytes);
+    let t2: T = OfSexp::of_sexp(&sexp).unwrap();
+    assert_eq!(t, t2)
+}
+
+fn test_rt_no_eq<T: SexpOf + OfSexp + std::fmt::Debug>(t: T, bytes: &str) {
+    let sexp = t.sexp_of();
+    let b = sexp.to_bytes();
+    assert_eq!(std::str::from_utf8(&b).unwrap(), bytes);
+    let t2: T = OfSexp::of_sexp(&sexp).unwrap();
+    let b = t2.sexp_of().to_bytes();
+    assert_eq!(std::str::from_utf8(&b).unwrap(), bytes);
+}
+
+#[derive(OfSexp, SexpOf, Debug, PartialEq, Eq)]
 struct Pancakes(i64);
 
 #[test]
 fn breakfast1() {
-    test_bytes(Pancakes(12), "(12)");
-    test_bytes(Pancakes(12345678910111213), "(12345678910111213)");
-    test_bytes(Pancakes(-12345678910111213), "(-12345678910111213)");
+    test_rt(Pancakes(12), "(12)");
+    test_rt(Pancakes(12345678910111213), "(12345678910111213)");
+    test_rt(Pancakes(-12345678910111213), "(-12345678910111213)");
 }
 
-#[derive(SexpOf, Debug, PartialEq)]
+#[derive(OfSexp, SexpOf, Debug, PartialEq)]
 struct MorePancakes(i64, f64, Option<i64>);
 
 #[test]
 fn breakfast2() {
-    test_bytes(
+    test_rt_no_eq(
         MorePancakes(12, 3.141592, Some(1234567890123)),
         "(12 3.141592 (1234567890123))",
     );
-    test_bytes(MorePancakes(12, std::f64::NAN, None), "(12 NaN ())");
-    test_bytes(
+    test_rt_no_eq(MorePancakes(12, std::f64::NAN, None), "(12 NaN ())");
+    test_rt_no_eq(
         MorePancakes(12, std::f64::NEG_INFINITY, None),
         "(12 -inf ())",
     );
