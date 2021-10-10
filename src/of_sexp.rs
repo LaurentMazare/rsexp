@@ -176,49 +176,48 @@ where
     }
 }
 
-impl<T1, T2> OfSexp for (T1, T2)
-where
-    T1: OfSexp,
-    T2: OfSexp,
-{
-    fn of_sexp(s: &Sexp) -> Result<Self, IntoSexpError> {
-        match s.extract_list("tuple2")? {
-            [t1, t2] => {
-                let t1 = T1::of_sexp(t1)?;
-                let t2 = T2::of_sexp(t2)?;
-                Ok((t1, t2))
-            }
-            l => Err(IntoSexpError::ListLengthMismatch {
-                type_: "tuple2",
-                expected_len: 2,
-                list_len: l.len(),
-            }),
-        }
-    }
+macro_rules! one {
+    ($t:tt) => {
+        1
+    };
+}
+macro_rules! count_tts {
+    ($($t:tt)*) => (0 $(+ one!($t))*)
 }
 
-impl<T1, T2, T3> OfSexp for (T1, T2, T3)
-where
-    T1: OfSexp,
-    T2: OfSexp,
-    T3: OfSexp,
-{
-    fn of_sexp(s: &Sexp) -> Result<Self, IntoSexpError> {
-        match s.extract_list("tuple3")? {
-            [t1, t2, t3] => {
-                let t1 = T1::of_sexp(t1)?;
-                let t2 = T2::of_sexp(t2)?;
-                let t3 = T3::of_sexp(t3)?;
-                Ok((t1, t2, t3))
+macro_rules! tuple_impls {
+    ( $( $name:ident )+ ) => {
+        impl<$($name: OfSexp),+> OfSexp for ($($name,)+)
+        {
+            #[allow(non_snake_case)]
+            fn of_sexp(s: &Sexp) -> Result<Self, IntoSexpError> {
+                match s.extract_list("tuple")? {
+                    [$($name,)+] => {
+                        $(let $name = $name::of_sexp($name)?;)+
+                        Ok(($($name,)+))
+                    }
+                    l => Err(IntoSexpError::ListLengthMismatch {
+                        type_: stringify!(($($name,)+)),
+                        expected_len: count_tts!($($name)+),
+                        list_len: l.len(),
+                    }),
+                }
             }
-            l => Err(IntoSexpError::ListLengthMismatch {
-                type_: "tuple3",
-                expected_len: 3,
-                list_len: l.len(),
-            }),
+
         }
-    }
+    };
 }
+
+tuple_impls! { A }
+tuple_impls! { A B }
+tuple_impls! { A B C }
+tuple_impls! { A B C D }
+tuple_impls! { A B C D E }
+tuple_impls! { A B C D E F }
+tuple_impls! { A B C D E F G }
+tuple_impls! { A B C D E F G H }
+tuple_impls! { A B C D E F G H I }
+tuple_impls! { A B C D E F G H I J }
 
 impl<T> OfSexp for Option<T>
 where

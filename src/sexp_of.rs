@@ -37,26 +37,30 @@ where
     }
 }
 
-impl<T1, T2> SexpOf for (T1, T2)
-where
-    T1: SexpOf,
-    T2: SexpOf,
-{
-    fn sexp_of(&self) -> Sexp {
-        list(&[self.0.sexp_of(), self.1.sexp_of()])
-    }
+macro_rules! tuple_impls {
+    ( $( $name:ident )+ ) => {
+        impl<$($name: SexpOf),+> SexpOf for ($($name,)+)
+        {
+            #[allow(non_snake_case)]
+            fn sexp_of(&self) -> Sexp {
+                let ($($name,)+) = self;
+                list(&[$($name.sexp_of(),)+])
+            }
+
+        }
+    };
 }
 
-impl<T1, T2, T3> SexpOf for (T1, T2, T3)
-where
-    T1: SexpOf,
-    T2: SexpOf,
-    T3: SexpOf,
-{
-    fn sexp_of(&self) -> Sexp {
-        list(&[self.0.sexp_of(), self.1.sexp_of(), self.2.sexp_of()])
-    }
-}
+tuple_impls! { A }
+tuple_impls! { A B }
+tuple_impls! { A B C }
+tuple_impls! { A B C D }
+tuple_impls! { A B C D E }
+tuple_impls! { A B C D E F }
+tuple_impls! { A B C D E F G }
+tuple_impls! { A B C D E F G H }
+tuple_impls! { A B C D E F G H I }
+tuple_impls! { A B C D E F G H I J }
 
 impl<K, V> SexpOf for std::collections::HashMap<K, V>
 where
