@@ -142,7 +142,7 @@ pub trait OfSexp {
 
 impl Sexp {
     pub fn of_sexp<T: OfSexp>(&self) -> Result<T, IntoSexpError> {
-        OfSexp::of_sexp(&self)
+        OfSexp::of_sexp(self)
     }
 }
 
