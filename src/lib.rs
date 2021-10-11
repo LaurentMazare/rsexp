@@ -105,6 +105,42 @@ impl Sexp {
         }
     }
 
+    /// Serialize a Sexp to a writer in a machine readable way rather than
+    /// human readable. This tries to avoid unnecessary whitespaces.
+    pub fn write_mach<W: Write>(&self, w: &mut W) -> std::io::Result<()> {
+        // The returned bool mentions whether a white space could be required.
+        fn write_loop<W: Write>(
+            s: &Sexp,
+            need_whitespace: bool,
+            w: &mut W,
+        ) -> std::io::Result<bool> {
+            match s {
+                Sexp::Atom(v) => {
+                    if must_escape(v) {
+                        write_escaped(v, w)?;
+                        Ok(false)
+                    } else {
+                        if need_whitespace {
+                            write_u8(b' ', w)?;
+                        }
+                        w.write_all(v)?;
+                        Ok(true)
+                    }
+                }
+                Sexp::List(vec) => {
+                    write_u8(b'(', w)?;
+                    let mut need_whitespace = false;
+                    for elem in vec.iter() {
+                        need_whitespace = write_loop(elem, need_whitespace, w)?;
+                    }
+                    write_u8(b')', w)?;
+                    Ok(false)
+                }
+            }
+        }
+        write_loop(self, false, w).map(|_| ())
+    }
+
     /// Serialize a Sexp to a buffer.
     ///
     /// # Example
@@ -117,6 +153,20 @@ impl Sexp {
         let mut buffer = Vec::new();
         // This could not fail as the buffer gets extended.
         self.write(&mut buffer).unwrap();
+        buffer
+    }
+
+    /// Serialize a Sexp to a buffer, machine readable version.
+    ///
+    /// # Example
+    ///
+    /// ```
+    ///     let sexp = rsexp::from_slice(b"((foo bar)(baz (1 2 3)))").unwrap();
+    ///     assert_eq!(sexp.to_bytes_mach(), b"((foo bar)(baz(1 2 3)))");
+    /// ```
+    pub fn to_bytes_mach(&self) -> Vec<u8> {
+        let mut buffer = Vec::new();
+        self.write_mach(&mut buffer).unwrap();
         buffer
     }
 }

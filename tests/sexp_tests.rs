@@ -60,3 +60,22 @@ fn roundtrip_sexp() {
         "((foo bar) () (() () ((\"\\n\"))))"
     );
 }
+
+fn rt_mach(s: &str) {
+    let sexp = from_slice(s.as_bytes()).unwrap();
+    let bytes = sexp.to_bytes_mach();
+    assert_eq!(from_slice(&bytes).unwrap(), sexp);
+    let round_tripped = String::from_utf8_lossy(&bytes).to_string();
+    assert_eq!(&round_tripped, s)
+}
+
+#[test]
+fn roundtrip_sexp_mach() {
+    rt_mach("(ATOM)");
+    rt_mach("(\"foo bar\"baz\"x\\\"\")");
+    rt_mach("()");
+    rt_mach("(()()(()()(())))");
+    rt_mach("((foo bar)()(()()((\"\\n\"))))");
+    rt_mach("((foo\"bar\\\\\")()(()()((\"\\\\n\"))))");
+    rt_mach("((g)(\" \"a\" \"b c)(e()d()(()a)b))");
+}
