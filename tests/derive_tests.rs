@@ -11,7 +11,7 @@ fn test_rt<T: SexpOf + OfSexp + std::fmt::Debug + Eq>(t: T, bytes: &str) {
     let sexp = t.sexp_of();
     let b = sexp.to_bytes();
     assert_eq!(std::str::from_utf8(&b).unwrap(), bytes);
-    let t2: T = OfSexp::of_sexp(&sexp).unwrap();
+    let t2: T = sexp.of_sexp().unwrap();
     assert_eq!(t, t2)
 }
 
@@ -19,7 +19,7 @@ fn test_rt_no_eq<T: SexpOf + OfSexp + std::fmt::Debug>(t: T, bytes: &str) {
     let sexp = t.sexp_of();
     let b = sexp.to_bytes();
     assert_eq!(std::str::from_utf8(&b).unwrap(), bytes);
-    let t2: T = OfSexp::of_sexp(&sexp).unwrap();
+    let t2: T = sexp.of_sexp().unwrap();
     let b = t2.sexp_of().to_bytes();
     assert_eq!(std::str::from_utf8(&b).unwrap(), bytes);
 }

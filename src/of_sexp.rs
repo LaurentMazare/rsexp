@@ -140,6 +140,12 @@ pub trait OfSexp {
         Self: Sized;
 }
 
+impl Sexp {
+    pub fn of_sexp<T: OfSexp>(&self) -> Result<T, IntoSexpError> {
+        OfSexp::of_sexp(&self)
+    }
+}
+
 impl OfSexp for String {
     fn of_sexp(s: &Sexp) -> Result<Self, IntoSexpError> {
         let atom = s.extract_atom("String")?;
