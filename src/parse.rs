@@ -257,7 +257,7 @@ pub fn from_slice(input: &[u8]) -> Result<Sexp, nom::Err<Error<&[u8]>>> {
 /// # Example
 ///
 /// ```
-///   let sexps = rsexp::multi_from_slice(b"(foo bar)(baz (1 2 3))").unwrap();
+///   let sexps = rsexp::from_slice_multi(b"(foo bar)(baz (1 2 3))").unwrap();
 ///   println!("{:?}", sexps);
 ///   assert_eq!(2, sexps.len());
 /// ```
@@ -267,7 +267,7 @@ pub fn from_slice(input: &[u8]) -> Result<Sexp, nom::Err<Error<&[u8]>>> {
 /// This deserialization can fail if the bytes do not follow the expected
 /// sexp format.
 
-pub fn multi_from_slice(input: &[u8]) -> Result<Vec<Sexp>, nom::Err<Error<&[u8]>>> {
+pub fn from_slice_multi(input: &[u8]) -> Result<Vec<Sexp>, nom::Err<Error<&[u8]>>> {
     let (remaining, sexps) = preceded(space_or_comments, many0(sexp_no_leading_blank))(input)?;
     if remaining.is_empty() {
         Ok(sexps)
@@ -281,7 +281,7 @@ pub fn multi_from_slice(input: &[u8]) -> Result<Vec<Sexp>, nom::Err<Error<&[u8]>
 
 #[cfg(test)]
 mod tests {
-    use crate::{from_slice, multi_from_slice, Sexp};
+    use crate::{from_slice, from_slice_multi, Sexp};
 
     fn atom(b: &[u8]) -> Sexp {
         Sexp::Atom(b.to_vec())
@@ -315,14 +315,14 @@ mod tests {
         assert_eq!(from_slice(b"(\"\")"), Ok(list(&[atom(b"")])));
         assert_eq!(from_slice(b"\t (\"\")"), Ok(list(&[atom(b"")])));
         assert_eq!(from_slice(b" (\t\"\")"), Ok(list(&[atom(b"")])));
-        assert_eq!(multi_from_slice(b""), Ok(vec![]));
-        assert_eq!(multi_from_slice(b"()"), Ok(vec![list(&[])]));
+        assert_eq!(from_slice_multi(b""), Ok(vec![]));
+        assert_eq!(from_slice_multi(b"()"), Ok(vec![list(&[])]));
         assert_eq!(
-            multi_from_slice(b"(\t\t\t)()"),
+            from_slice_multi(b"(\t\t\t)()"),
             Ok(vec![list(&[]), list(&[])])
         );
         assert_eq!(
-            multi_from_slice(b"(\"\\\\\\n\")"),
+            from_slice_multi(b"(\"\\\\\\n\")"),
             Ok(vec![list(&[atom(b"\\\n")])])
         );
     }

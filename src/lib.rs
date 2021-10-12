@@ -105,6 +105,17 @@ impl Sexp {
         }
     }
 
+    /// Serialize multiple Sexps to a writer.
+    pub fn write_multi<W: Write>(sexps: &[Self], w: &mut W) -> std::io::Result<()> {
+        for (index, s) in sexps.iter().enumerate() {
+            if index > 0 {
+                write_u8(b' ', w)?
+            }
+            s.write(w)?
+        }
+        Ok(())
+    }
+
     /// Serialize a Sexp to a writer in a machine readable way rather than
     /// human readable. This tries to avoid unnecessary whitespaces.
     pub fn write_mach<W: Write>(&self, w: &mut W) -> std::io::Result<()> {
@@ -153,6 +164,20 @@ impl Sexp {
         let mut buffer = Vec::new();
         // This could not fail as the buffer gets extended.
         self.write(&mut buffer).unwrap();
+        buffer
+    }
+
+    /// Serialize multiple Sexps to a buffer.
+    ///
+    /// # Example
+    ///
+    /// ```
+    ///     let sexps = rsexp::from_slice_multi(b"()((foo bar)(baz (1 2 3)))").unwrap();
+    ///     assert_eq!(rsexp::Sexp::to_bytes_multi(&sexps), b"() ((foo bar) (baz (1 2 3)))");
+    /// ```
+    pub fn to_bytes_multi(sexps: &[Self]) -> Vec<u8> {
+        let mut buffer = Vec::new();
+        Self::write_multi(sexps, &mut buffer).unwrap();
         buffer
     }
 
