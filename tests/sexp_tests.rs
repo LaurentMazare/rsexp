@@ -72,6 +72,7 @@ fn rt_mach(s: &str) {
 #[test]
 fn roundtrip_sexp_mach() {
     rt_mach("(ATOM)");
+    rt_mach("(A T O M)");
     rt_mach("(\"foo bar\"baz\"x\\\"\")");
     rt_mach("()");
     rt_mach("(()()(()()(())))");

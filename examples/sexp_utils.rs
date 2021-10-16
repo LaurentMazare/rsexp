@@ -14,6 +14,7 @@ struct Opts {
 #[derive(Clap)]
 enum SubCommand {
     Bench(Bench),
+    Print(Print),
 }
 
 #[derive(Clap)]
@@ -29,6 +30,21 @@ struct Bench {
 
     #[clap(short)]
     verbose: bool,
+}
+
+#[derive(Clap)]
+struct Print {
+    #[clap(short, long)]
+    input_filename: String,
+}
+
+impl Print {
+    fn run(&self) -> std::io::Result<()> {
+        let contents = std::fs::read(&self.input_filename)?;
+        let sexp = rsexp::from_slice(&contents).unwrap();
+        sexp.write_mach(&mut std::io::stdout())?;
+        Ok(())
+    }
 }
 
 fn cnt_loop(s: &Sexp) -> (usize, usize) {
@@ -87,6 +103,7 @@ fn main() -> std::io::Result<()> {
 
     match opts.subcmd {
         SubCommand::Bench(bench) => bench.run()?,
+        SubCommand::Print(print) => print.run()?,
     };
     Ok(())
 }
