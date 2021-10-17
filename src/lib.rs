@@ -176,7 +176,11 @@ impl Sexp {
 
         fn escape(s: &Sexp) -> EscapedSexpWithSize {
             match s {
-                Sexp::Atom(a) if must_escape(a) => EscapedSexpWithSize::AtomOwned(a.to_vec()),
+                Sexp::Atom(a) if must_escape(a) => {
+                    let mut escaped = Vec::new();
+                    write_escaped(a, &mut escaped).unwrap();
+                    EscapedSexpWithSize::AtomOwned(escaped)
+                }
                 Sexp::Atom(a) => EscapedSexpWithSize::AtomRef(a),
                 Sexp::List(l) => {
                     let mut total_size = 2 + l.len();

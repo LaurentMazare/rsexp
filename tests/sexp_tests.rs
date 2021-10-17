@@ -36,14 +36,15 @@ fn rt(s: &[u8]) -> String {
     let sexp = from_slice(s).unwrap();
     let bytes = sexp.to_bytes();
     assert_eq!(from_slice(&bytes).unwrap(), sexp);
+    assert_eq!(from_slice(&sexp.to_bytes_hum()).unwrap(), sexp);
     String::from_utf8_lossy(&bytes).to_string()
 }
 
 #[quickcheck]
 fn round_trip(sexp: QSexp) -> bool {
     let sexp = sexp.0;
-    let bytes = sexp.to_bytes();
-    from_slice(&bytes) == Ok(sexp)
+    from_slice(&sexp.to_bytes()).unwrap() == sexp
+        && from_slice(&sexp.to_bytes_hum()).unwrap() == sexp
 }
 
 #[test]
