@@ -13,36 +13,53 @@ struct Opts {
 
 #[derive(Clap)]
 enum SubCommand {
+    /// Run some benchmark converting repeatedly an in-memory sexp string to and
+    /// from a sexp object.
     Bench(Bench),
+    /// Read a sexp and print it back.
     Print(Print),
 }
 
 #[derive(Clap)]
 struct Bench {
+    /// The sexp file to use as input.
     #[clap(short, long)]
     input_filename: String,
 
+    /// When specified, write
     #[clap(short, long)]
     output_filename: Option<String>,
 
+    /// The number of times to run the to and of sexp conversions.
     #[clap(long, default_value = "1")]
     iterations: u32,
 
+    /// Verbose mode.
     #[clap(short)]
     verbose: bool,
 }
 
 #[derive(Clap)]
 struct Print {
+    /// The sexp file to use as input.
     #[clap(short, long)]
     input_filename: String,
+
+    /// When set, print the machine readable version rather than the human readable one.
+    #[clap(short, long)]
+    mach: bool,
 }
 
 impl Print {
     fn run(&self) -> std::io::Result<()> {
         let contents = std::fs::read(&self.input_filename)?;
         let sexp = rsexp::from_slice(&contents).unwrap();
-        sexp.write_mach(&mut std::io::stdout())?;
+        if self.mach {
+            sexp.write_mach(&mut std::io::stdout())?;
+        } else {
+            sexp.write_hum(&mut std::io::stdout())?;
+        }
+        println!("");
         Ok(())
     }
 }

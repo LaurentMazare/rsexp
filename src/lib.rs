@@ -7,6 +7,8 @@ pub use parse::*;
 pub use sexp_of::*;
 use std::io::Write;
 
+const MAX_LINE_WIDTH: usize = 90;
+
 /// Type for S-expressions using owned values.
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum Sexp {
@@ -152,6 +154,92 @@ impl Sexp {
         write_loop(self, false, w).map(|_| ())
     }
 
+    /// Serialize a Sexp to a writer in a human readable way with some new lines
+    /// and indentation.
+    pub fn write_hum<W: Write>(&self, w: &mut W) -> std::io::Result<()> {
+        enum EscapedSexpWithSize<'a> {
+            AtomRef(&'a [u8]),
+            AtomOwned(Vec<u8>),
+            List {
+                total_size: usize,
+                values: Vec<EscapedSexpWithSize<'a>>,
+            },
+        }
+
+        fn size(s: &EscapedSexpWithSize) -> usize {
+            match s {
+                EscapedSexpWithSize::AtomRef(atom) => atom.len(),
+                EscapedSexpWithSize::AtomOwned(atom) => atom.len(),
+                EscapedSexpWithSize::List { total_size, .. } => *total_size,
+            }
+        }
+
+        fn escape(s: &Sexp) -> EscapedSexpWithSize {
+            match s {
+                Sexp::Atom(a) if must_escape(a) => EscapedSexpWithSize::AtomOwned(a.to_vec()),
+                Sexp::Atom(a) => EscapedSexpWithSize::AtomRef(a),
+                Sexp::List(l) => {
+                    let mut total_size = 2 + l.len();
+                    let mut values = Vec::new();
+                    for elem in l.iter() {
+                        let v = escape(elem);
+                        total_size += size(&v);
+                        values.push(v);
+                    }
+                    EscapedSexpWithSize::List { total_size, values }
+                }
+            }
+        }
+
+        fn write_loop<'a, W: Write>(
+            s: &EscapedSexpWithSize<'a>,
+            first_elem: bool,
+            indent_level: usize,
+            already_written_on_line: &mut usize,
+            w: &mut W,
+        ) -> std::io::Result<()> {
+            if !first_elem && size(s) + *already_written_on_line > MAX_LINE_WIDTH {
+                write_u8(b'\n', w)?;
+                for _i in 0..indent_level {
+                    write_u8(b' ', w)?;
+                }
+                *already_written_on_line = indent_level
+            }
+            match s {
+                EscapedSexpWithSize::AtomRef(a) => {
+                    *already_written_on_line += a.len();
+                    w.write_all(a)
+                }
+                EscapedSexpWithSize::AtomOwned(a) => {
+                    *already_written_on_line += a.len();
+                    w.write_all(a)
+                }
+                EscapedSexpWithSize::List { values, .. } => {
+                    *already_written_on_line += 1;
+                    write_u8(b'(', w)?;
+                    for (index, elem) in values.iter().enumerate() {
+                        if index > 0 {
+                            *already_written_on_line += 1;
+                            write_u8(b' ', w)?;
+                        }
+                        write_loop(
+                            elem,
+                            index == 0,
+                            indent_level + 1,
+                            already_written_on_line,
+                            w,
+                        )?;
+                    }
+                    *already_written_on_line += 1;
+                    write_u8(b')', w)?;
+                    Ok(())
+                }
+            }
+        }
+        let s = escape(self);
+        write_loop(&s, true, 0, &mut 0, w)
+    }
+
     /// Serialize a Sexp to a buffer.
     ///
     /// # Example
@@ -192,6 +280,20 @@ impl Sexp {
     pub fn to_bytes_mach(&self) -> Vec<u8> {
         let mut buffer = Vec::new();
         self.write_mach(&mut buffer).unwrap();
+        buffer
+    }
+
+    /// Serialize a Sexp to a buffer, human readable version.
+    ///
+    /// # Example
+    ///
+    /// ```
+    ///     let sexp = rsexp::from_slice(b"((foo bar)(baz (1 2 3)))").unwrap();
+    ///     assert_eq!(sexp.to_bytes_hum(), b"((foo bar) (baz (1 2 3)))");
+    /// ```
+    pub fn to_bytes_hum(&self) -> Vec<u8> {
+        let mut buffer = Vec::new();
+        self.write_hum(&mut buffer).unwrap();
         buffer
     }
 }
