@@ -70,6 +70,14 @@ fn rt_mach(s: &str) {
     assert_eq!(&round_tripped, s)
 }
 
+fn rt_hum(s: &str) {
+    let sexp = from_slice(s.as_bytes()).unwrap();
+    let bytes = sexp.to_bytes_hum();
+    assert_eq!(from_slice(&bytes).unwrap(), sexp);
+    let round_tripped = String::from_utf8_lossy(&bytes).to_string();
+    assert_eq!(&round_tripped, s)
+}
+
 #[test]
 fn roundtrip_sexp_mach() {
     rt_mach("(ATOM)");
@@ -81,4 +89,26 @@ fn roundtrip_sexp_mach() {
     rt_mach("((foo bar)()(()()((\"\\n\"))))");
     rt_mach("((foo\"bar\\\\\")()(()()((\"\\\\n\"))))");
     rt_mach("((g)(\" \"a\" \"b c)(e()d()(()a)b))");
+}
+
+#[test]
+fn roundtrip_sexp_hum() {
+    rt_hum("(ATOM)");
+    rt_hum("(A T O M)");
+    rt_hum("(\"foo bar\" baz \"x\\\"\")");
+    rt_hum("()");
+    rt_hum("(((())))");
+    rt_hum("(() () (() () (())))");
+    rt_hum("((foo bar) () (() () ((\"\\n\"))))");
+    rt_hum("((foo \"bar\\\\\") () (() () ((\"\\\\n\"))))");
+    rt_hum("((g) (\" \" a \" \" b c) (e () d () (() a) b))");
+    rt_hum(
+        r#"(a b c d 
+ (b (c) 
+  ((hetuaonhunoeatuhaoenuthenuthaonuthoaeunthaounaoethunateohunaotheuanuhaeo 
+    auhteonuheocuhaoecur eoathuanetouh otn hu aeontuhaoentuhaoenuh d d d d d d d d d d d d) 
+   (abcd) (ohuntahuaoehnuatheuatoeu) 
+   (heuntahuncaoehtuanotuehaoentuhoaentuhaoentuhaoenuthaounaheo))) 
+ (a beuhtaeuntaohutnaouhaonuhaonuthaounao hteounha))"#,
+    );
 }
