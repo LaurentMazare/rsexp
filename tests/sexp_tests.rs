@@ -103,12 +103,12 @@ fn roundtrip_sexp_hum() {
     rt_hum("((foo \"bar\\\\\") () (() () ((\"\\\\n\"))))");
     rt_hum("((g) (\" \" a \" \" b c) (e () d () (() a) b))");
     rt_hum(
-        r#"(a b c d 
- (b (c) 
-  ((hetuaonhunoeatuhaoenuthenuthaonuthoaeunthaounaoethunateohunaotheuanuhaeo 
-    auhteonuheocuhaoecur eoathuanetouh otn hu aeontuhaoentuhaoenuh d d d d d d d d d d d d) 
-   (abcd) (ohuntahuaoehnuatheuatoeu) 
-   (heuntahuncaoehtuanotuehaoentuhoaentuhaoentuhaoenuthaounaheo))) 
+        r#"(a b c d
+ (b (c)
+  ((hetuaonhunoeatuhaoenuthenuthaonuthoaeunthaounaoethunateohunaotheuanuhaeo
+    auhteonuheocuhaoecur eoathuanetouh otn hu aeontuhaoentuhaoenuh d d d d d d d d d d d d)
+   (abcd) (ohuntahuaoehnuatheuatoeu)
+   (heuntahuncaoehtuanotuehaoentuhoaentuhaoentuhaoenuthaounaheo)))
  (a beuhtaeuntaohutnaouhaonuhaonuthaounao hteounha))"#,
     );
 }

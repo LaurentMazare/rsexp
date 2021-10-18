@@ -208,6 +208,9 @@ impl Sexp {
                     write_u8(b' ', w)?;
                 }
                 *already_written_on_line = indent_level
+            } else if !first_elem {
+                *already_written_on_line += 1;
+                write_u8(b' ', w)?;
             }
             match s {
                 EscapedSexpWithSize::AtomRef(a) => {
@@ -222,10 +225,6 @@ impl Sexp {
                     *already_written_on_line += 1;
                     write_u8(b'(', w)?;
                     for (index, elem) in values.iter().enumerate() {
-                        if index > 0 {
-                            *already_written_on_line += 1;
-                            write_u8(b' ', w)?;
-                        }
                         write_loop(
                             elem,
                             index == 0,
