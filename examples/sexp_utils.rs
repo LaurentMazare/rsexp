@@ -1,17 +1,16 @@
 // TODO: use tokio?
-use clap::{AppSettings, Clap};
+use clap::Parser;
 use rsexp::Sexp;
 use tracing::{event, Level};
 
-#[derive(Clap)]
+#[derive(Parser)]
 #[clap(version = "1.0", author = "Laurent Mazare <lmazare@gmail.com>")]
-#[clap(setting = AppSettings::ColoredHelp)]
 struct Opts {
     #[clap(subcommand)]
     subcmd: SubCommand,
 }
 
-#[derive(Clap)]
+#[derive(Parser)]
 enum SubCommand {
     /// Run some benchmark converting repeatedly an in-memory sexp string to and
     /// from a sexp object.
@@ -20,7 +19,7 @@ enum SubCommand {
     Print(Print),
 }
 
-#[derive(Clap)]
+#[derive(Parser)]
 struct Bench {
     /// The sexp file to use as input.
     #[clap(short, long)]
@@ -39,7 +38,7 @@ struct Bench {
     verbose: bool,
 }
 
-#[derive(Clap)]
+#[derive(Parser)]
 struct Print {
     /// The sexp file to use as input.
     #[clap(short, long)]
