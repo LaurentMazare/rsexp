@@ -4,7 +4,9 @@ use std::collections::BTreeMap;
 
 fn test_bytes<T: SexpOf>(t: T, bytes: &str) {
     let b = t.sexp_of().to_bytes();
-    assert_eq!(std::str::from_utf8(&b).unwrap(), bytes)
+    assert_eq!(std::str::from_utf8(&b).unwrap(), bytes);
+    let b = t.sexp_of().to_bytes_hum();
+    assert_eq!(std::str::from_utf8(&b).unwrap(), bytes);
 }
 
 fn test_rt<T: SexpOf + OfSexp + std::fmt::Debug + Eq>(t: T, bytes: &str) {
@@ -12,7 +14,13 @@ fn test_rt<T: SexpOf + OfSexp + std::fmt::Debug + Eq>(t: T, bytes: &str) {
     let b = sexp.to_bytes();
     assert_eq!(std::str::from_utf8(&b).unwrap(), bytes);
     let t2: T = sexp.of_sexp().unwrap();
-    assert_eq!(t, t2)
+    assert_eq!(t, t2);
+    // Round trip via the to_bytes_hum representation.
+    let t2: T = rsexp::from_slice(&sexp.to_bytes_hum())
+        .unwrap()
+        .of_sexp()
+        .unwrap();
+    assert_eq!(t, t2);
 }
 
 fn test_rt_no_eq<T: SexpOf + OfSexp + std::fmt::Debug>(t: T, bytes: &str) {
