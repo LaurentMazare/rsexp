@@ -2,7 +2,7 @@
 name = "rsexp-derive"
 version = "0.2.0"
 authors = ["laurent <laurent.mazare@gmail.com>"]
-edition = "2018"
+edition = "2021"
 
 description = "Derive macro for S-expression conversion."
 repository = "https://github.com/LaurentMazare/rsexp"
