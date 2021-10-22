@@ -25,17 +25,13 @@ struct Bench {
     #[clap(short, long)]
     input_filename: String,
 
-    /// When specified, write
+    /// When specified, write the sexp in the specified file.
     #[clap(short, long)]
     output_filename: Option<String>,
 
     /// The number of times to run the to and of sexp conversions.
     #[clap(long, default_value = "1")]
     iterations: u32,
-
-    /// Verbose mode.
-    #[clap(short)]
-    verbose: bool,
 }
 
 #[derive(Parser)]
