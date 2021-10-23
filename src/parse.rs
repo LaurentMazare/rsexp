@@ -214,14 +214,14 @@ fn sexp_in_list(input: &[u8]) -> Res<&[u8], Sexp> {
 // This is used to encode a list separated by spaces as the
 // separated_list combinator does not seem to handle separators that
 // can be empty.
-pub fn sexp_no_leading_blank(input: &[u8]) -> Res<&[u8], Sexp> {
+fn sexp_no_leading_blank(input: &[u8]) -> Res<&[u8], Sexp> {
     terminated(alt((atom, sexp_in_list)), space_or_comments)(input)
 }
 
 /// Deserialize a Sexp from bytes, returning both the sexp and the remaining
 /// bytes.
-pub fn from_slice_allow_remaining(input: &[u8]) -> Res<&[u8], Sexp> {
-    preceded(space_or_comments, sexp_no_leading_blank)(input)
+pub fn from_slice_allow_remaining<T: AsRef<[u8]> + ?Sized>(input: &T) -> Res<&[u8], Sexp> {
+    preceded(space_or_comments, sexp_no_leading_blank)(input.as_ref())
 }
 
 /// Deserialize a Sexp from bytes. This fails if there are remaining bytes.
@@ -240,7 +240,8 @@ pub fn from_slice_allow_remaining(input: &[u8]) -> Res<&[u8], Sexp> {
 ///
 /// This deserialization can fail if the bytes do not follow the expected
 /// sexp format.
-pub fn from_slice(input: &[u8]) -> Result<Sexp, nom::Err<Error<&[u8]>>> {
+pub fn from_slice<T: AsRef<[u8]> + ?Sized>(input: &T) -> Result<Sexp, nom::Err<Error<&[u8]>>> {
+    let input = input.as_ref();
     let (remaining, sexp) = from_slice_allow_remaining(input)?;
     if remaining.is_empty() {
         Ok(sexp)
@@ -267,7 +268,10 @@ pub fn from_slice(input: &[u8]) -> Result<Sexp, nom::Err<Error<&[u8]>>> {
 /// This deserialization can fail if the bytes do not follow the expected
 /// sexp format.
 
-pub fn from_slice_multi(input: &[u8]) -> Result<Vec<Sexp>, nom::Err<Error<&[u8]>>> {
+pub fn from_slice_multi<T: AsRef<[u8]> + ?Sized>(
+    input: &T,
+) -> Result<Vec<Sexp>, nom::Err<Error<&[u8]>>> {
+    let input = input.as_ref();
     let (remaining, sexps) = preceded(space_or_comments, many0(sexp_no_leading_blank))(input)?;
     if remaining.is_empty() {
         Ok(sexps)

@@ -32,7 +32,8 @@ impl quickcheck::Arbitrary for QSexp {
     }
 }
 
-fn rt(s: &[u8]) -> String {
+fn rt<T: AsRef<[u8]> + ?Sized>(s: &T) -> String {
+    let s = s.as_ref();
     let sexp = from_slice(s).unwrap();
     let bytes = sexp.to_bytes();
     assert_eq!(from_slice(&bytes).unwrap(), sexp);
@@ -49,21 +50,21 @@ fn round_trip(sexp: QSexp) -> bool {
 
 #[test]
 fn roundtrip_sexp() {
-    assert_eq!(rt(b"(    ATOM)"), "(ATOM)");
+    assert_eq!(rt("(    ATOM)"), "(ATOM)");
     assert_eq!(
-        rt(b" ( \"foo bar\"   baz \"x\\\"\") "),
+        rt(" ( \"foo bar\"   baz \"x\\\"\") "),
         "(\"foo bar\" baz \"x\\\"\")"
     );
-    assert_eq!(rt(b"\t()"), "()");
-    assert_eq!(rt(b"(()()(()()(())))"), "(() () (() () (())))");
+    assert_eq!(rt("\t()"), "()");
+    assert_eq!(rt("(()()(()()(())))"), "(() () (() () (())))");
     assert_eq!(
-        rt(b"((foo bar)()(()()((\"\n\"))))"),
+        rt("((foo bar)()(()()((\"\n\"))))"),
         "((foo bar) () (() () ((\"\\n\"))))"
     );
 }
 
 fn rt_mach(s: &str) {
-    let sexp = from_slice(s.as_bytes()).unwrap();
+    let sexp = from_slice(s).unwrap();
     let bytes = sexp.to_bytes_mach();
     assert_eq!(from_slice(&bytes).unwrap(), sexp);
     let round_tripped = String::from_utf8_lossy(&bytes).to_string();
