@@ -147,7 +147,8 @@ fn impl_named_struct_of_sexp(
         let mut __map: std::collections::HashMap<&[u8], &rsexp::Sexp> = rsexp::Sexp::extract_map(__fields, #ident_str)?;
         #(#mk_fields)*
         if !__map.is_empty() {
-            let extra_fields = __map.into_keys().map(|x| String::from_utf8_lossy(x).to_string()).collect();
+            let mut extra_fields: Vec<_> = __map.into_keys().map(|x| String::from_utf8_lossy(x).to_string()).collect();
+            extra_fields.sort();
             return Err(rsexp::IntoSexpError::ExtraFieldsInStruct {
                 type_: #ident_str,
                 extra_fields,

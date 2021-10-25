@@ -1,18 +1,18 @@
-use rsexp::{OfSexp, SexpOf};
+use rsexp::{IntoSexpError, OfSexp, SexpOf};
 use rsexp_derive::{OfSexp, SexpOf};
 use std::collections::BTreeMap;
 
-fn test_bytes<T: SexpOf>(t: T, bytes: &str) {
+fn test_bytes<T: SexpOf>(t: T, str: &str) {
     let b = t.sexp_of().to_bytes();
-    assert_eq!(std::str::from_utf8(&b).unwrap(), bytes);
+    assert_eq!(std::str::from_utf8(&b).unwrap(), str);
     let b = t.sexp_of().to_bytes_hum();
-    assert_eq!(std::str::from_utf8(&b).unwrap(), bytes);
+    assert_eq!(std::str::from_utf8(&b).unwrap(), str);
 }
 
-fn test_rt<T: SexpOf + OfSexp + std::fmt::Debug + Eq>(t: T, bytes: &str) {
+fn test_rt<T: SexpOf + OfSexp + std::fmt::Debug + Eq>(t: T, str: &str) {
     let sexp = t.sexp_of();
     let b = sexp.to_bytes();
-    assert_eq!(std::str::from_utf8(&b).unwrap(), bytes);
+    assert_eq!(std::str::from_utf8(&b).unwrap(), str);
     let t2: T = sexp.of_sexp().unwrap();
     assert_eq!(t, t2);
     // Round trip via the to_bytes_hum representation.
@@ -23,13 +23,57 @@ fn test_rt<T: SexpOf + OfSexp + std::fmt::Debug + Eq>(t: T, bytes: &str) {
     assert_eq!(t, t2);
 }
 
-fn test_rt_no_eq<T: SexpOf + OfSexp + std::fmt::Debug>(t: T, bytes: &str) {
+fn test_rt_no_eq<T: SexpOf + OfSexp + std::fmt::Debug>(t: T, str: &str) {
     let sexp = t.sexp_of();
     let b = sexp.to_bytes();
-    assert_eq!(std::str::from_utf8(&b).unwrap(), bytes);
+    assert_eq!(std::str::from_utf8(&b).unwrap(), str);
     let t2: T = sexp.of_sexp().unwrap();
     let b = t2.sexp_of().to_bytes();
-    assert_eq!(std::str::from_utf8(&b).unwrap(), bytes);
+    assert_eq!(std::str::from_utf8(&b).unwrap(), str);
+}
+
+fn test_err<T: OfSexp>(str: &str, expected_err: IntoSexpError) {
+    let sexp = rsexp::from_slice(str).unwrap();
+    let t_or_err: Result<T, IntoSexpError> = sexp.of_sexp();
+    let err = match t_or_err {
+        Ok(_) => panic!("expected an error, got a value {}", str),
+        Err(err) => err,
+    };
+    assert_eq!(err, expected_err)
+}
+
+fn length_mismatch(type_: &'static str, expected_len: usize, list_len: usize) -> IntoSexpError {
+    IntoSexpError::ListLengthMismatch {
+        type_,
+        expected_len,
+        list_len,
+    }
+}
+
+fn missing_fields(type_: &'static str, field: &'static str) -> IntoSexpError {
+    IntoSexpError::MissingFieldsInStruct { type_, field }
+}
+
+fn extra_fields(type_: &'static str, extra_fields: &[&str]) -> IntoSexpError {
+    IntoSexpError::ExtraFieldsInStruct {
+        type_,
+        extra_fields: extra_fields.iter().map(|x| x.to_string()).collect(),
+    }
+}
+
+fn expected_atom_got_list(type_: &'static str, list_len: usize) -> IntoSexpError {
+    IntoSexpError::ExpectedAtomGotList { type_, list_len }
+}
+
+fn expected_list_got_atom(type_: &'static str) -> IntoSexpError {
+    IntoSexpError::ExpectedListGotAtom { type_ }
+}
+
+fn unknown_constructor(type_: &'static str, constructor: &str) -> IntoSexpError {
+    IntoSexpError::UnknownConstructorForEnum {
+        type_,
+        constructor: constructor.to_string(),
+    }
 }
 
 #[derive(OfSexp, SexpOf, Debug, PartialEq, Eq)]
@@ -40,6 +84,18 @@ fn breakfast1() {
     test_rt(Pancakes(12), "(12)");
     test_rt(Pancakes(12345678910111213), "(12345678910111213)");
     test_rt(Pancakes(-12345678910111213), "(-12345678910111213)");
+    test_err::<Pancakes>("()", length_mismatch("Pancakes", 1, 0));
+    test_err::<Pancakes>("(1 2)", length_mismatch("Pancakes", 1, 2));
+    test_err::<Pancakes>("(1 2 3 4)", length_mismatch("Pancakes", 1, 4));
+    test_err::<Pancakes>("(())", expected_atom_got_list("stringable", 0));
+    test_err::<Pancakes>("((1))", expected_atom_got_list("stringable", 1));
+    test_err::<Pancakes>("((1 2))", expected_atom_got_list("stringable", 2));
+    test_err::<Pancakes>(
+        "(a)",
+        IntoSexpError::StringConversionError {
+            err: "invalid digit found in string".to_string(),
+        },
+    );
 }
 
 #[derive(OfSexp, SexpOf, Debug, PartialEq)]
@@ -56,6 +112,9 @@ fn breakfast2() {
         MorePancakes(12, std::f64::NEG_INFINITY, None),
         "(12 -inf ())",
     );
+    test_err::<MorePancakes>("()", length_mismatch("MorePancakes", 3, 0));
+    test_err::<MorePancakes>("(1 2 3)", expected_list_got_atom("option"));
+    test_err::<MorePancakes>("(1 2 (3 4))", length_mismatch("option", 1, 2));
 }
 
 #[derive(OfSexp, SexpOf, Debug, PartialEq)]
@@ -76,6 +135,23 @@ fn breakfast3() {
             value2: (3.14159265358979, 2.71828182846),
         },
         "((pancakes (12345)) (more_pancakes ((12 3.141592 (1234567890123)))) (value1 987654321) (value2 (3.14159265358979 2.71828182846)))",
+    );
+    test_err::<Breakfasts>("()", missing_fields("Breakfasts", "pancakes"));
+    test_err::<Breakfasts>(
+        "((pancakes (1)))",
+        missing_fields("Breakfasts", "more_pancakes"),
+    );
+    test_err::<Breakfasts>(
+        "((pancakes (1))(more_pancakes ())(value1 1)(value3 (1 2)))",
+        missing_fields("Breakfasts", "value2"),
+    );
+    test_err::<Breakfasts>(
+        "((pancakes (1))(more_pancakes ())(value1 1)(value2 (1 2))(extra foo))",
+        extra_fields("Breakfasts", &["extra"]),
+    );
+    test_err::<Breakfasts>(
+        "((pancakes (1))(more_pancakes ())(value1 1)(value2 (1 2))(a foo)(b bar))",
+        extra_fields("Breakfasts", &["a", "b"]),
     );
 }
 
@@ -222,6 +298,13 @@ fn my_enum2() {
         }),
         "(G ((x -1) (y ()) (z \"\")))",
     );
+    test_err::<MyEnum2>(
+        "()",
+        IntoSexpError::ExpectedConstructorGotEmptyList { type_: "MyEnum2" },
+    );
+    test_err::<MyEnum2>("Z", unknown_constructor("MyEnum2", "Z"));
+    test_err::<MyEnum2>("1", unknown_constructor("MyEnum2", "1"));
+    test_err::<MyEnum2>("(Z foo)", unknown_constructor("MyEnum2", "Z"));
 }
 
 #[derive(OfSexp, SexpOf, Debug, PartialEq, Eq)]
