@@ -1,6 +1,6 @@
 [package]
 name = "rsexp-derive"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["laurent <laurent.mazare@gmail.com>"]
 edition = "2021"
 
@@ -14,5 +14,5 @@ proc-macro = true
 
 [dependencies]
 syn = "1.0"
-quote = "1.0"
+quote = "1.0.10"
 proc-macro2 = "1.0"
