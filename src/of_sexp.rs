@@ -55,6 +55,14 @@ pub enum IntoSexpError {
     },
 }
 
+impl std::fmt::Display for IntoSexpError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl std::error::Error for IntoSexpError {}
+
 impl From<std::str::Utf8Error> for IntoSexpError {
     fn from(e: std::str::Utf8Error) -> Self {
         IntoSexpError::Utf8Error(e)
