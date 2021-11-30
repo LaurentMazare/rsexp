@@ -1,5 +1,6 @@
 // TODO: Block comments.
 use nom::{
+    branch::alt,
     character::complete::char,
     error::{Error, ErrorKind, ParseError},
     multi::many0,
@@ -188,12 +189,11 @@ fn quoted_string(input: &[u8]) -> Res<&[u8], Vec<u8>> {
 }
 
 fn atom(input: &[u8]) -> Res<&[u8], Sexp> {
-    if !input.is_empty() && input[0] == b'"' {
-        delimited(char('"'), quoted_string, char('"'))(input)
-            .map(|(next_input, atom)| (next_input, Sexp::Atom(atom)))
-    } else {
-        unquoted_string(input).map(|(next_input, atom)| (next_input, Sexp::Atom(atom)))
-    }
+    alt((
+        unquoted_string,
+        delimited(char('"'), quoted_string, char('"')),
+    ))(input)
+    .map(|(next_input, atom)| (next_input, Sexp::Atom(atom)))
 }
 
 fn sexp_in_list(input: &[u8]) -> Res<&[u8], Sexp> {
