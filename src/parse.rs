@@ -1,8 +1,7 @@
 // TODO: Block comments.
 use nom::{
-    branch::alt,
     character::complete::char,
-    error::{context, Error, ErrorKind, ParseError},
+    error::{Error, ErrorKind, ParseError},
     multi::many0,
     sequence::{delimited, pair, preceded, terminated},
     IResult, InputTake,
@@ -189,24 +188,19 @@ fn quoted_string(input: &[u8]) -> Res<&[u8], Vec<u8>> {
 }
 
 fn atom(input: &[u8]) -> Res<&[u8], Sexp> {
-    context(
-        "atom",
-        alt((
-            unquoted_string,
-            delimited(char('"'), quoted_string, char('"')),
-        )),
-    )(input)
-    .map(|(next_input, atom)| (next_input, Sexp::Atom(atom)))
+    if !input.is_empty() && input[0] == b'"' {
+        delimited(char('"'), quoted_string, char('"'))(input)
+            .map(|(next_input, atom)| (next_input, Sexp::Atom(atom)))
+    } else {
+        unquoted_string(input).map(|(next_input, atom)| (next_input, Sexp::Atom(atom)))
+    }
 }
 
 fn sexp_in_list(input: &[u8]) -> Res<&[u8], Sexp> {
-    context(
-        "sexp-in-list",
-        delimited(
-            pair(char('('), space_or_comments),
-            many0(sexp_no_leading_blank),
-            char(')'),
-        ),
+    delimited(
+        pair(char('('), space_or_comments),
+        many0(sexp_no_leading_blank),
+        char(')'),
     )(input)
     .map(|(next_input, res)| (next_input, Sexp::List(res)))
 }
@@ -215,7 +209,11 @@ fn sexp_in_list(input: &[u8]) -> Res<&[u8], Sexp> {
 // separated_list combinator does not seem to handle separators that
 // can be empty.
 fn sexp_no_leading_blank(input: &[u8]) -> Res<&[u8], Sexp> {
-    terminated(alt((atom, sexp_in_list)), space_or_comments)(input)
+    if !input.is_empty() && input[0] == b'(' {
+        terminated(sexp_in_list, space_or_comments)(input)
+    } else {
+        terminated(atom, space_or_comments)(input)
+    }
 }
 
 /// Deserialize a Sexp from bytes, returning both the sexp and the remaining
