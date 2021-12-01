@@ -25,6 +25,7 @@ tracing-subscriber = "0.2"
 rsexp-derive = { version = "0.2.2", path = "rsexp-derive" }
 criterion = "0.3"
 rand = "0.8.4"
+rand_pcg = "0.3.1"
 
 [[bench]]
 name = "rsexp_benchmark"

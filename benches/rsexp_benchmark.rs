@@ -1,10 +1,10 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use rand::seq::SliceRandom;
-use rand::thread_rng;
+use rand::SeedableRng;
+use rand_pcg::Lcg128Xsl64;
 
-fn make_n_random_characters(n: i64, alphabet: &Vec<char>) -> String {
-    let mut rng = thread_rng();
-    (0..n).map(|_| alphabet.choose(&mut rng).unwrap()).collect()
+fn make_n_random_characters(n: i64, alphabet: &Vec<char>, rng: &mut Lcg128Xsl64) -> String {
+    (0..n).map(|_| alphabet.choose(rng).unwrap()).collect()
 }
 
 fn make_benchmark_string(
@@ -12,6 +12,7 @@ fn make_benchmark_string(
     str_len: i64,
     quoted: bool,
     alphabet: &Vec<char>,
+    rng: &mut Lcg128Xsl64,
 ) -> String {
     if let Some(len) = num_repetitions.get(0) {
         format!(
@@ -20,13 +21,14 @@ fn make_benchmark_string(
                 &num_repetitions[1..],
                 str_len,
                 quoted,
-                alphabet
+                alphabet,
+                rng
             ))
             .take(*len as usize)
             .collect::<String>()
         )
     } else {
-        let chars = make_n_random_characters(str_len, alphabet);
+        let chars = make_n_random_characters(str_len, alphabet, rng);
         if quoted {
             format!("\"{}\"", chars)
         } else {
@@ -40,6 +42,8 @@ fn parse_sexp(contents: &[u8]) {
 }
 
 pub fn criterion_benchmark(c: &mut Criterion) {
+    let mut rng: Lcg128Xsl64 = Lcg128Xsl64::seed_from_u64(54321);
+    // TODO: Include some special characters to test escape sequences in strings.
     let alphabet: Vec<char> = (b'a'..=b'z').map(char::from).collect();
 
     for quoted in [true, false] {
@@ -55,7 +59,8 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             );
             let num_repetitions: Vec<i64> =
                 std::iter::repeat(repetitions as i64).take(depth).collect();
-            let sexp = make_benchmark_string(&num_repetitions, str_len, quoted, &alphabet);
+            let sexp =
+                make_benchmark_string(&num_repetitions, str_len, quoted, &alphabet, &mut rng);
             c.bench_function(&bench_name, |b| {
                 b.iter(|| parse_sexp(black_box(sexp.as_bytes())))
             });
