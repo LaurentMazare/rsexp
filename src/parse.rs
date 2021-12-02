@@ -3,7 +3,7 @@ use nom::{
     character::complete::char,
     error::{Error, ErrorKind, ParseError},
     multi::many0,
-    sequence::{delimited, pair, preceded, terminated},
+    sequence::{delimited, pair},
     IResult, InputTake,
 };
 
@@ -210,16 +210,22 @@ fn sexp_in_list(input: &[u8]) -> Res<&[u8], Sexp> {
 // can be empty.
 fn sexp_no_leading_blank(input: &[u8]) -> Res<&[u8], Sexp> {
     if !input.is_empty() && input[0] == b'(' {
-        terminated(sexp_in_list, space_or_comments)(input)
+        let (input, sexp) = sexp_in_list(input)?;
+        let (input, _) = space_or_comments(input)?;
+        Ok((input, sexp))
     } else {
-        terminated(atom, space_or_comments)(input)
+        let (input, sexp) = atom(input)?;
+        let (input, _) = space_or_comments(input)?;
+        Ok((input, sexp))
     }
 }
 
 /// Deserialize a Sexp from bytes, returning both the sexp and the remaining
 /// bytes.
 pub fn from_slice_allow_remaining<T: AsRef<[u8]> + ?Sized>(input: &T) -> Res<&[u8], Sexp> {
-    preceded(space_or_comments, sexp_no_leading_blank)(input.as_ref())
+    let input = input.as_ref();
+    let (input, _) = space_or_comments(input)?;
+    sexp_no_leading_blank(input)
 }
 
 /// Deserialize a Sexp from bytes. This fails if there are remaining bytes.
@@ -270,7 +276,8 @@ pub fn from_slice_multi<T: AsRef<[u8]> + ?Sized>(
     input: &T,
 ) -> Result<Vec<Sexp>, nom::Err<Error<&[u8]>>> {
     let input = input.as_ref();
-    let (remaining, sexps) = preceded(space_or_comments, many0(sexp_no_leading_blank))(input)?;
+    let (input, _) = space_or_comments(input)?;
+    let (remaining, sexps) = many0(sexp_no_leading_blank)(input)?;
     if remaining.is_empty() {
         Ok(sexps)
     } else {
