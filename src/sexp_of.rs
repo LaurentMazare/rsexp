@@ -68,11 +68,7 @@ where
     V: SexpOf,
 {
     fn sexp_of(&self) -> Sexp {
-        Sexp::List(
-            self.iter()
-                .map(|(k, v)| list(&[k.sexp_of(), v.sexp_of()]))
-                .collect(),
-        )
+        Sexp::List(self.iter().map(|(k, v)| list(&[k.sexp_of(), v.sexp_of()])).collect())
     }
 }
 
@@ -82,11 +78,7 @@ where
     V: SexpOf,
 {
     fn sexp_of(&self) -> Sexp {
-        Sexp::List(
-            self.iter()
-                .map(|(k, v)| list(&[k.sexp_of(), v.sexp_of()]))
-                .collect(),
-        )
+        Sexp::List(self.iter().map(|(k, v)| list(&[k.sexp_of(), v.sexp_of()])).collect())
     }
 }
 

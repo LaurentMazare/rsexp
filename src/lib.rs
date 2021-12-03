@@ -160,10 +160,7 @@ impl Sexp {
         enum EscapedSexpWithSize<'a> {
             AtomRef(&'a [u8]),
             AtomOwned(Vec<u8>),
-            List {
-                total_size: usize,
-                values: Vec<EscapedSexpWithSize<'a>>,
-            },
+            List { total_size: usize, values: Vec<EscapedSexpWithSize<'a>> },
         }
 
         fn size(s: &EscapedSexpWithSize) -> usize {
@@ -225,13 +222,7 @@ impl Sexp {
                     *already_written_on_line += 1;
                     write_u8(b'(', w)?;
                     for (index, elem) in values.iter().enumerate() {
-                        write_loop(
-                            elem,
-                            index == 0,
-                            indent_level + 1,
-                            already_written_on_line,
-                            w,
-                        )?;
+                        write_loop(elem, index == 0, indent_level + 1, already_written_on_line, w)?;
                     }
                     *already_written_on_line += 1;
                     write_u8(b')', w)?;

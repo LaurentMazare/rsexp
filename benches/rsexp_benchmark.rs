@@ -61,9 +61,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 std::iter::repeat(repetitions as i64).take(depth).collect();
             let sexp =
                 make_benchmark_string(&num_repetitions, str_len, quoted, &alphabet, &mut rng);
-            c.bench_function(&bench_name, |b| {
-                b.iter(|| parse_sexp(black_box(sexp.as_bytes())))
-            });
+            c.bench_function(&bench_name, |b| b.iter(|| parse_sexp(black_box(sexp.as_bytes()))));
         }
     }
 }

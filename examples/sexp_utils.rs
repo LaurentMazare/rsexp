@@ -87,12 +87,7 @@ impl Bench {
         event!(Level::INFO, "converted to sexp {} times", self.iterations);
         let sexp = rsexp::from_slice(&contents).unwrap();
         let (cnt_atoms, cnt_bytes) = cnt_loop(&sexp);
-        event!(
-            Level::INFO,
-            "found {} atoms, total of {} bytes",
-            cnt_atoms,
-            cnt_bytes
-        );
+        event!(Level::INFO, "found {} atoms, total of {} bytes", cnt_atoms, cnt_bytes);
         for _index in 0..self.iterations {
             let _contents = value.to_bytes();
         }
@@ -107,9 +102,8 @@ impl Bench {
 
 fn main() -> std::io::Result<()> {
     let opts: Opts = Opts::parse();
-    let subscriber = tracing_subscriber::FmtSubscriber::builder()
-        .with_max_level(tracing::Level::TRACE)
-        .finish();
+    let subscriber =
+        tracing_subscriber::FmtSubscriber::builder().with_max_level(tracing::Level::TRACE).finish();
 
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 

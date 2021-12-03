@@ -9,9 +9,7 @@ use quickcheck::Arbitrary;
 fn arbitrary_(g: &mut quickcheck::Gen, max_depth: u8) -> Sexp {
     if max_depth == 0 || bool::arbitrary(g) {
         let data = if bool::arbitrary(g) {
-            (0..=(u32::arbitrary(g) % 10))
-                .map(|_| 97 + u8::arbitrary(g) % 26)
-                .collect()
+            (0..=(u32::arbitrary(g) % 10)).map(|_| 97 + u8::arbitrary(g) % 26).collect()
         } else {
             Vec::<u8>::arbitrary(g)
         };
@@ -51,16 +49,10 @@ fn round_trip(sexp: QSexp) -> bool {
 #[test]
 fn roundtrip_sexp() {
     assert_eq!(rt("(    ATOM)"), "(ATOM)");
-    assert_eq!(
-        rt(" ( \"foo bar\"   baz \"x\\\"\") "),
-        "(\"foo bar\" baz \"x\\\"\")"
-    );
+    assert_eq!(rt(" ( \"foo bar\"   baz \"x\\\"\") "), "(\"foo bar\" baz \"x\\\"\")");
     assert_eq!(rt("\t()"), "()");
     assert_eq!(rt("(()()(()()(())))"), "(() () (() () (())))");
-    assert_eq!(
-        rt("((foo bar)()(()()((\"\n\"))))"),
-        "((foo bar) () (() () ((\"\\n\"))))"
-    );
+    assert_eq!(rt("((foo bar)()(()()((\"\n\"))))"), "((foo bar) () (() () ((\"\\n\"))))");
 }
 
 fn rt_mach(s: &str) {

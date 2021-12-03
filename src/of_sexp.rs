@@ -9,50 +9,18 @@ use std::collections::{BTreeMap, HashMap};
 pub enum IntoSexpError {
     Utf8Error(std::str::Utf8Error),
     FromUtf8Error(std::string::FromUtf8Error),
-    ExpectedAtomGotList {
-        type_: &'static str,
-        list_len: usize,
-    },
-    ExpectedListGotAtom {
-        type_: &'static str,
-    },
-    ExpectedPairForMapGotAtom {
-        type_: &'static str,
-    },
-    DuplicateKeyInMap {
-        type_: &'static str,
-        key: Option<String>,
-    },
-    ExpectedPairForMapGotList {
-        type_: &'static str,
-        list_len: usize,
-    },
-    ListLengthMismatch {
-        type_: &'static str,
-        expected_len: usize,
-        list_len: usize,
-    },
-    StringConversionError {
-        err: String,
-    },
-    MissingFieldsInStruct {
-        type_: &'static str,
-        field: &'static str,
-    },
-    ExtraFieldsInStruct {
-        type_: &'static str,
-        extra_fields: Vec<String>,
-    },
-    UnknownConstructorForEnum {
-        type_: &'static str,
-        constructor: String,
-    },
-    ExpectedConstructorGotEmptyList {
-        type_: &'static str,
-    },
-    ExpectedConstructorGotListInList {
-        type_: &'static str,
-    },
+    ExpectedAtomGotList { type_: &'static str, list_len: usize },
+    ExpectedListGotAtom { type_: &'static str },
+    ExpectedPairForMapGotAtom { type_: &'static str },
+    DuplicateKeyInMap { type_: &'static str, key: Option<String> },
+    ExpectedPairForMapGotList { type_: &'static str, list_len: usize },
+    ListLengthMismatch { type_: &'static str, expected_len: usize, list_len: usize },
+    StringConversionError { err: String },
+    MissingFieldsInStruct { type_: &'static str, field: &'static str },
+    ExtraFieldsInStruct { type_: &'static str, extra_fields: Vec<String> },
+    UnknownConstructorForEnum { type_: &'static str, constructor: String },
+    ExpectedConstructorGotEmptyList { type_: &'static str },
+    ExpectedConstructorGotListInList { type_: &'static str },
 }
 
 impl std::fmt::Display for IntoSexpError {
@@ -79,10 +47,9 @@ impl Sexp {
     pub fn extract_atom<'a>(&'a self, type_: &'static str) -> Result<&'a [u8], IntoSexpError> {
         match self {
             Sexp::Atom(atom) => Ok(atom),
-            Sexp::List(list) => Err(IntoSexpError::ExpectedAtomGotList {
-                type_,
-                list_len: list.len(),
-            }),
+            Sexp::List(list) => {
+                Err(IntoSexpError::ExpectedAtomGotList { type_, list_len: list.len() })
+            }
         }
     }
 
@@ -276,9 +243,7 @@ macro_rules! of_sexp_map {
                     }
                     Sexp::List(list) => match list.as_slice() {
                         [key, value] => {
-                            if map
-                                .insert(OfSexp::of_sexp(key)?, OfSexp::of_sexp(value)?)
-                                .is_some()
+                            if map.insert(OfSexp::of_sexp(key)?, OfSexp::of_sexp(value)?).is_some()
                             {
                                 return Err(IntoSexpError::DuplicateKeyInMap { type_, key: None });
                             }

@@ -301,18 +301,11 @@ mod tests {
         assert_eq!(from_slice(b"( ATOM)"), Ok(Sexp::List(vec![atom(b"ATOM")])));
         assert_eq!(
             from_slice(b" ( \"foo bar\"   baz \"x\\\"\") "),
-            Ok(Sexp::List(vec![
-                atom(b"foo bar"),
-                atom(b"baz"),
-                atom(b"x\""),
-            ]))
+            Ok(Sexp::List(vec![atom(b"foo bar"), atom(b"baz"), atom(b"x\""),]))
         );
         assert_eq!(from_slice(b"\"\""), Ok(atom(b"")));
         assert_eq!(from_slice(b"\"\\000A\\123\""), Ok(atom(b"\0A\x7B")));
-        assert_eq!(
-            from_slice(b"\"\\000A\\x7B\\x99\\x9Z\""),
-            Ok(atom(b"\0A\x7B\x99\\x9Z"))
-        );
+        assert_eq!(from_slice(b"\"\\000A\\x7B\\x99\\x9Z\""), Ok(atom(b"\0A\x7B\x99\\x9Z")));
         assert_eq!(from_slice(b"( )"), Ok(list(&[])));
         assert_eq!(from_slice(b"()"), Ok(list(&[])));
         assert_eq!(from_slice(b"(())"), Ok(list(&[list(&[])])));
@@ -322,13 +315,7 @@ mod tests {
         assert_eq!(from_slice(b" (\t\"\")"), Ok(list(&[atom(b"")])));
         assert_eq!(from_slice_multi(b""), Ok(vec![]));
         assert_eq!(from_slice_multi(b"()"), Ok(vec![list(&[])]));
-        assert_eq!(
-            from_slice_multi(b"(\t\t\t)()"),
-            Ok(vec![list(&[]), list(&[])])
-        );
-        assert_eq!(
-            from_slice_multi(b"(\"\\\\\\n\")"),
-            Ok(vec![list(&[atom(b"\\\n")])])
-        );
+        assert_eq!(from_slice_multi(b"(\t\t\t)()"), Ok(vec![list(&[]), list(&[])]));
+        assert_eq!(from_slice_multi(b"(\"\\\\\\n\")"), Ok(vec![list(&[atom(b"\\\n")])]));
     }
 }

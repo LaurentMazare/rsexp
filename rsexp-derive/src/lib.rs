@@ -18,12 +18,7 @@ pub fn sexp_of_derive(input: TokenStream) -> TokenStream {
 }
 
 fn impl_sexp_of(ast: &DeriveInput) -> TokenStream {
-    let DeriveInput {
-        ident,
-        data,
-        generics,
-        ..
-    } = ast;
+    let DeriveInput { ident, data, generics, .. } = ast;
     let mut generics = generics.clone();
     for param in &mut generics.params {
         if let GenericParam::Type(type_param) = param {
@@ -181,12 +176,7 @@ fn impl_unnamed_struct_of_sexp(
     }
 }
 fn impl_of_sexp(ast: &DeriveInput) -> TokenStream {
-    let DeriveInput {
-        ident,
-        data,
-        generics,
-        ..
-    } = ast;
+    let DeriveInput { ident, data, generics, .. } = ast;
     let ident_str = ident.to_string();
     let mut generics = generics.clone();
     for param in &mut generics.params {

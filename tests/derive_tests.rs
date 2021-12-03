@@ -16,10 +16,7 @@ fn test_rt<T: SexpOf + OfSexp + std::fmt::Debug + Eq>(t: T, str: &str) {
     let t2: T = sexp.of_sexp().unwrap();
     assert_eq!(t, t2);
     // Round trip via the to_bytes_hum representation.
-    let t2: T = rsexp::from_slice(&sexp.to_bytes_hum())
-        .unwrap()
-        .of_sexp()
-        .unwrap();
+    let t2: T = rsexp::from_slice(&sexp.to_bytes_hum()).unwrap().of_sexp().unwrap();
     assert_eq!(t, t2);
 }
 
@@ -43,11 +40,7 @@ fn test_err<T: OfSexp>(str: &str, expected_err: IntoSexpError) {
 }
 
 fn length_mismatch(type_: &'static str, expected_len: usize, list_len: usize) -> IntoSexpError {
-    IntoSexpError::ListLengthMismatch {
-        type_,
-        expected_len,
-        list_len,
-    }
+    IntoSexpError::ListLengthMismatch { type_, expected_len, list_len }
 }
 
 fn missing_fields(type_: &'static str, field: &'static str) -> IntoSexpError {
@@ -70,10 +63,7 @@ fn expected_list_got_atom(type_: &'static str) -> IntoSexpError {
 }
 
 fn unknown_constructor(type_: &'static str, constructor: &str) -> IntoSexpError {
-    IntoSexpError::UnknownConstructorForEnum {
-        type_,
-        constructor: constructor.to_string(),
-    }
+    IntoSexpError::UnknownConstructorForEnum { type_, constructor: constructor.to_string() }
 }
 
 #[derive(OfSexp, SexpOf, Debug, PartialEq, Eq)]
@@ -92,9 +82,7 @@ fn breakfast1() {
     test_err::<Pancakes>("((1 2))", expected_atom_got_list("stringable", 2));
     test_err::<Pancakes>(
         "(a)",
-        IntoSexpError::StringConversionError {
-            err: "invalid digit found in string".to_string(),
-        },
+        IntoSexpError::StringConversionError { err: "invalid digit found in string".to_string() },
     );
 }
 
@@ -103,15 +91,9 @@ struct MorePancakes(i64, f64, Option<i64>);
 
 #[test]
 fn breakfast2() {
-    test_rt_no_eq(
-        MorePancakes(12, 3.141592, Some(1234567890123)),
-        "(12 3.141592 (1234567890123))",
-    );
+    test_rt_no_eq(MorePancakes(12, 3.141592, Some(1234567890123)), "(12 3.141592 (1234567890123))");
     test_rt_no_eq(MorePancakes(12, std::f64::NAN, None), "(12 NaN ())");
-    test_rt_no_eq(
-        MorePancakes(12, std::f64::NEG_INFINITY, None),
-        "(12 -inf ())",
-    );
+    test_rt_no_eq(MorePancakes(12, std::f64::NEG_INFINITY, None), "(12 -inf ())");
     test_err::<MorePancakes>("()", length_mismatch("MorePancakes", 3, 0));
     test_err::<MorePancakes>("(1 2 3)", expected_list_got_atom("option"));
     test_err::<MorePancakes>("(1 2 (3 4))", length_mismatch("option", 1, 2));
@@ -137,10 +119,7 @@ fn breakfast3() {
         "((pancakes (12345)) (more_pancakes ((12 3.141592 (1234567890123)))) (value1 987654321) (value2 (3.14159265358979 2.71828182846)))",
     );
     test_err::<Breakfasts>("()", missing_fields("Breakfasts", "pancakes"));
-    test_err::<Breakfasts>(
-        "((pancakes (1)))",
-        missing_fields("Breakfasts", "more_pancakes"),
-    );
+    test_err::<Breakfasts>("((pancakes (1)))", missing_fields("Breakfasts", "more_pancakes"));
     test_err::<Breakfasts>(
         "((pancakes (1))(more_pancakes ())(value1 1)(value3 (1 2)))",
         missing_fields("Breakfasts", "value2"),
@@ -238,14 +217,8 @@ fn my_enum() {
     test_bytes(MyEnum::D(42, 1337), "(D 42 1337)");
     test_bytes(MyEnum::E(PairInt(42, 1337)), "(E (42 1337))");
     test_bytes(MyEnum::F { x: -1, y: 3.14 }, "(F (x -1) (y 3.14))");
-    test_bytes(
-        MyEnum::G(StructXY { x: -1, y: 3.14 }),
-        "(G ((x -1) (y 3.14)))",
-    );
-    test_bytes(
-        MyEnum::H("foo", " needs escaping\n"),
-        "(H foo \" needs escaping\\n\")",
-    );
+    test_bytes(MyEnum::G(StructXY { x: -1, y: 3.14 }), "(G ((x -1) (y 3.14)))");
+    test_bytes(MyEnum::H("foo", " needs escaping\n"), "(H foo \" needs escaping\\n\")");
 }
 
 #[derive(OfSexp, SexpOf, Debug, PartialEq, Eq)]
@@ -275,33 +248,16 @@ fn my_enum2() {
     test_rt(MyEnum2::C(42), "(C 42)");
     test_rt(MyEnum2::D(42, 1337), "(D 42 1337)");
     test_rt(MyEnum2::E(PairInt(42, 1337)), "(E (42 1337))");
+    test_rt(MyEnum2::F { x: -1, y: "foo bar\x7F".to_string() }, "(F (x -1) (y \"foo bar\\127\"))");
     test_rt(
-        MyEnum2::F {
-            x: -1,
-            y: "foo bar\x7F".to_string(),
-        },
-        "(F (x -1) (y \"foo bar\\127\"))",
-    );
-    test_rt(
-        MyEnum2::G(StructXYZ {
-            x: -1,
-            y: Some((12345, 678910)),
-            z: "test\"".to_string(),
-        }),
+        MyEnum2::G(StructXYZ { x: -1, y: Some((12345, 678910)), z: "test\"".to_string() }),
         "(G ((x -1) (y ((12345 678910))) (z \"test\\\"\")))",
     );
     test_bytes(
-        MyEnum2::G(StructXYZ {
-            x: -1,
-            y: None,
-            z: "".to_string(),
-        }),
+        MyEnum2::G(StructXYZ { x: -1, y: None, z: "".to_string() }),
         "(G ((x -1) (y ()) (z \"\")))",
     );
-    test_err::<MyEnum2>(
-        "()",
-        IntoSexpError::ExpectedConstructorGotEmptyList { type_: "MyEnum2" },
-    );
+    test_err::<MyEnum2>("()", IntoSexpError::ExpectedConstructorGotEmptyList { type_: "MyEnum2" });
     test_err::<MyEnum2>("Z", unknown_constructor("MyEnum2", "Z"));
     test_err::<MyEnum2>("1", unknown_constructor("MyEnum2", "1"));
     test_err::<MyEnum2>("(Z foo)", unknown_constructor("MyEnum2", "Z"));
@@ -324,10 +280,7 @@ fn with_vec() {
         z: vec![],
         m: m.clone(),
     };
-    test_rt(
-        wv,
-        "((x ((foo 1337) (\" bar\" 42))) (y ((98765 -4321))) (z ()) (m ()))",
-    );
+    test_rt(wv, "((x ((foo 1337) (\" bar\" 42))) (y ((98765 -4321))) (z ()) (m ()))");
     m.insert("foo".to_string(), (1, 2));
     m.insert("bar".to_string(), (12, 23));
     m.insert("foo bar".to_string(), (123, 234));
