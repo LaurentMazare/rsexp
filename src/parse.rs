@@ -1,6 +1,5 @@
 // TODO: Block comments.
 use nom::{
-    character::complete::char,
     error::{Error, ErrorKind, ParseError},
     IResult, InputTake,
 };
@@ -185,11 +184,22 @@ fn quoted_string(input: &[u8]) -> Res<&[u8], Vec<u8>> {
     )))
 }
 
+fn char(c: u8, input: &[u8]) -> Res<&[u8], ()> {
+    if !input.is_empty() && input[0] == c {
+        Ok((&input[1..], ()))
+    } else {
+        Err(nom::Err::Failure(Error::from_error_kind(
+            input,
+            ErrorKind::Eof,
+        )))
+    }
+}
+
 fn atom(input: &[u8]) -> Res<&[u8], Sexp> {
     let (next_input, atom) = if !input.is_empty() && input[0] == b'"' {
-        let (input, _) = char('"')(input)?;
+        let (input, ()) = char(b'"', input)?;
         let (input, atom) = quoted_string(input)?;
-        let (input, _) = char('"')(input)?;
+        let (input, ()) = char(b'"', input)?;
         (input, atom)
     } else {
         unquoted_string(input)?
@@ -198,7 +208,7 @@ fn atom(input: &[u8]) -> Res<&[u8], Sexp> {
 }
 
 fn sexp_in_list(input: &[u8]) -> Res<&[u8], Sexp> {
-    let (input, _) = char('(')(input)?;
+    let (input, ()) = char(b'(', input)?;
     let (input, _) = space_or_comments(input)?;
     let mut input = input;
     let mut res = vec![];
@@ -206,7 +216,7 @@ fn sexp_in_list(input: &[u8]) -> Res<&[u8], Sexp> {
         input = next_input;
         res.push(sexp)
     }
-    let (input, _) = char(')')(input)?;
+    let (input, ()) = char(b')', input)?;
     Ok((input, Sexp::List(res)))
 }
 
