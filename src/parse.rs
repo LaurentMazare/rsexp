@@ -202,14 +202,9 @@ fn sexp_in_list(input: &[u8]) -> Res<&[u8], Sexp> {
     let (input, _) = space_or_comments(input)?;
     let mut input = input;
     let mut res = vec![];
-    loop {
-        match sexp_no_leading_blank(input) {
-            Ok((next_input, sexp)) => {
-                input = next_input;
-                res.push(sexp)
-            }
-            Err(_) => break,
-        }
+    while let Ok((next_input, sexp)) = sexp_no_leading_blank(input) {
+        input = next_input;
+        res.push(sexp)
     }
     let (input, _) = char(')')(input)?;
     Ok((input, Sexp::List(res)))
@@ -289,14 +284,9 @@ pub fn from_slice_multi<T: AsRef<[u8]> + ?Sized>(
     let (input, _) = space_or_comments(input)?;
     let mut input = input;
     let mut sexps = vec![];
-    loop {
-        match sexp_no_leading_blank(input) {
-            Ok((next_input, sexp)) => {
-                input = next_input;
-                sexps.push(sexp)
-            }
-            Err(_) => break,
-        }
+    while let Ok((next_input, sexp)) = sexp_no_leading_blank(input) {
+        input = next_input;
+        sexps.push(sexp)
     }
     if input.is_empty() {
         Ok(sexps)
