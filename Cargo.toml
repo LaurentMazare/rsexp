@@ -13,9 +13,6 @@ readme = "README.md"
 [workspace]
 members = ["rsexp-derive"]
 
-[dependencies]
-nom = "7.0"
-
 [dev-dependencies]
 quickcheck = "1"
 quickcheck_macros = "1"

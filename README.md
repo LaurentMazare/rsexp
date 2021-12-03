@@ -1,5 +1,5 @@
 # rsexp
-S-expression parsing and writing in Rust using [nom](https://github.com/Geal/nom) parser combinators.
+S-expression library for Rust.
 
 [![Build Status](https://github.com/LaurentMazare/rsexp/workflows/Continuous%20integration/badge.svg)](https://github.com/LaurentMazare/rsexp/actions)
 [![Latest version](https://img.shields.io/crates/v/rsexp.svg)](https://crates.io/crates/rsexp)
