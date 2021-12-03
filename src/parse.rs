@@ -2,8 +2,6 @@
 use nom::{
     character::complete::char,
     error::{Error, ErrorKind, ParseError},
-    multi::many0,
-    sequence::{delimited, pair},
     IResult, InputTake,
 };
 
@@ -189,7 +187,10 @@ fn quoted_string(input: &[u8]) -> Res<&[u8], Vec<u8>> {
 
 fn atom(input: &[u8]) -> Res<&[u8], Sexp> {
     let (next_input, atom) = if !input.is_empty() && input[0] == b'"' {
-        delimited(char('"'), quoted_string, char('"'))(input)?
+        let (input, _) = char('"')(input)?;
+        let (input, atom) = quoted_string(input)?;
+        let (input, _) = char('"')(input)?;
+        (input, atom)
     } else {
         unquoted_string(input)?
     };
@@ -197,12 +198,21 @@ fn atom(input: &[u8]) -> Res<&[u8], Sexp> {
 }
 
 fn sexp_in_list(input: &[u8]) -> Res<&[u8], Sexp> {
-    delimited(
-        pair(char('('), space_or_comments),
-        many0(sexp_no_leading_blank),
-        char(')'),
-    )(input)
-    .map(|(next_input, res)| (next_input, Sexp::List(res)))
+    let (input, _) = char('(')(input)?;
+    let (input, _) = space_or_comments(input)?;
+    let mut input = input;
+    let mut res = vec![];
+    loop {
+        match sexp_no_leading_blank(input) {
+            Ok((next_input, sexp)) => {
+                input = next_input;
+                res.push(sexp)
+            }
+            Err(_) => break,
+        }
+    }
+    let (input, _) = char(')')(input)?;
+    Ok((input, Sexp::List(res)))
 }
 
 // This is used to encode a list separated by spaces as the
@@ -277,12 +287,22 @@ pub fn from_slice_multi<T: AsRef<[u8]> + ?Sized>(
 ) -> Result<Vec<Sexp>, nom::Err<Error<&[u8]>>> {
     let input = input.as_ref();
     let (input, _) = space_or_comments(input)?;
-    let (remaining, sexps) = many0(sexp_no_leading_blank)(input)?;
-    if remaining.is_empty() {
+    let mut input = input;
+    let mut sexps = vec![];
+    loop {
+        match sexp_no_leading_blank(input) {
+            Ok((next_input, sexp)) => {
+                input = next_input;
+                sexps.push(sexp)
+            }
+            Err(_) => break,
+        }
+    }
+    if input.is_empty() {
         Ok(sexps)
     } else {
         Err(nom::Err::Failure(Error::from_error_kind(
-            remaining,
+            input,
             ErrorKind::Eof,
         )))
     }
