@@ -1,17 +1,17 @@
 // TODO: Block comments.
-use nom::{
-    character::complete::char,
-    error::{Error, ErrorKind, ParseError},
-    multi::many0,
-    sequence::{delimited, pair},
-    IResult, InputTake,
-};
-
 use crate::Sexp;
 
-type Res<T, U> = IResult<T, U, Error<T>>;
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Error {
+    UnexpectedCharInString(u8),
+    UnexpectedEofInString,
+    UnexpectedEof,
+    EmptyAtom,
+}
 
-fn space_or_comments(input: &[u8]) -> Res<&[u8], &[u8]> {
+type Res<'a, T> = Result<(&'a [u8], T), Error>;
+
+fn space_or_comments(input: &[u8]) -> Res<()> {
     let mut index = 0;
     while index < input.len() {
         match input[index] {
@@ -21,46 +21,36 @@ fn space_or_comments(input: &[u8]) -> Res<&[u8], &[u8]> {
                     index += 1
                 }
             }
-            _ => return Ok(input.take_split(index)),
+            _ => return Ok((&input[index..], ())),
         }
     }
-    Ok(input.take_split(input.len()))
+    Ok((&[], ()))
 }
 
-fn unquoted_string_(input: &[u8]) -> Res<&[u8], &[u8]> {
-    // Most errors below are handled with Failure rather than error
-    // as these cannot be recovered from.
+fn unquoted_string_(input: &[u8]) -> Res<&[u8]> {
     for (index, &c) in input.iter().enumerate() {
         match c {
             b';' | b'(' | b')' | b'"' | b' ' | b'\t' | b'\r' | b'\n' => {
-                return Ok(input.take_split(index));
+                let (str, remaining) = input.split_at(index);
+                return Ok((remaining, str));
             }
             b'#' if index > 0 && input[index - 1] == b'|' => {
-                return Err(nom::Err::Failure(Error::from_error_kind(
-                    input,
-                    ErrorKind::Not,
-                )));
+                return Err(Error::UnexpectedCharInString(b'|'))
             }
             b'|' if index > 0 && input[index - 1] == b'#' => {
-                return Err(nom::Err::Failure(Error::from_error_kind(
-                    input,
-                    ErrorKind::Not,
-                )));
+                return Err(Error::UnexpectedCharInString(b'#'))
             }
             _ => {}
         }
     }
-    Ok(input.take_split(input.len()))
+    Ok((&[], input))
 }
 
-fn unquoted_string(input: &[u8]) -> Res<&[u8], Vec<u8>> {
+fn unquoted_string(input: &[u8]) -> Res<Vec<u8>> {
     match unquoted_string_(input) {
         Ok((next_input, atom)) => {
             if atom.is_empty() {
-                Err(nom::Err::Error(Error::from_error_kind(
-                    input,
-                    ErrorKind::NonEmpty,
-                )))
+                Err(Error::EmptyAtom)
             } else {
                 Ok((next_input, atom.to_vec()))
             }
@@ -113,23 +103,20 @@ fn two_hex_digits(input: &[u8], index: usize) -> Option<u8> {
 }
 
 // Maybe this should be rewritten using combinators?
-fn quoted_string(input: &[u8]) -> Res<&[u8], Vec<u8>> {
+fn quoted_string(input: &[u8]) -> Res<Vec<u8>> {
     let mut buffer: Vec<u8> = Vec::new();
     let mut index = 0;
     while index < input.len() {
         match input[index] {
             b'"' => {
-                let (tail, _) = input.take_split(index);
-                return Ok((tail, buffer));
+                let (_, remaining) = input.split_at(index);
+                return Ok((remaining, buffer));
             }
             b'\\' => {
                 index += 1;
                 if index == input.len() {
                     // Unexpected eof
-                    return Err(nom::Err::Failure(Error::from_error_kind(
-                        input,
-                        ErrorKind::Eof,
-                    )));
+                    return Err(Error::UnexpectedEofInString);
                 }
                 match input[index] {
                     b'\n' => {
@@ -181,50 +168,62 @@ fn quoted_string(input: &[u8]) -> Res<&[u8], Vec<u8>> {
         };
         index += 1;
     }
-    Err(nom::Err::Failure(Error::from_error_kind(
-        input,
-        ErrorKind::Eof,
-    )))
+    Err(Error::UnexpectedEofInString)
 }
 
-fn atom(input: &[u8]) -> Res<&[u8], Sexp> {
+fn char(c: u8, input: &[u8]) -> Res<()> {
+    if !input.is_empty() && input[0] == c {
+        Ok((&input[1..], ()))
+    } else {
+        Err(Error::UnexpectedEof)
+    }
+}
+
+fn atom(input: &[u8]) -> Res<Sexp> {
     let (next_input, atom) = if !input.is_empty() && input[0] == b'"' {
-        delimited(char('"'), quoted_string, char('"'))(input)?
+        let (input, ()) = char(b'"', input)?;
+        let (input, atom) = quoted_string(input)?;
+        let (input, ()) = char(b'"', input)?;
+        (input, atom)
     } else {
         unquoted_string(input)?
     };
     Ok((next_input, Sexp::Atom(atom)))
 }
 
-fn sexp_in_list(input: &[u8]) -> Res<&[u8], Sexp> {
-    delimited(
-        pair(char('('), space_or_comments),
-        many0(sexp_no_leading_blank),
-        char(')'),
-    )(input)
-    .map(|(next_input, res)| (next_input, Sexp::List(res)))
+fn sexp_in_list(input: &[u8]) -> Res<Sexp> {
+    let (input, ()) = char(b'(', input)?;
+    let (input, ()) = space_or_comments(input)?;
+    let mut input = input;
+    let mut res = vec![];
+    while let Ok((next_input, sexp)) = sexp_no_leading_blank(input) {
+        input = next_input;
+        res.push(sexp)
+    }
+    let (input, ()) = char(b')', input)?;
+    Ok((input, Sexp::List(res)))
 }
 
 // This is used to encode a list separated by spaces as the
 // separated_list combinator does not seem to handle separators that
 // can be empty.
-fn sexp_no_leading_blank(input: &[u8]) -> Res<&[u8], Sexp> {
+fn sexp_no_leading_blank(input: &[u8]) -> Res<Sexp> {
     if !input.is_empty() && input[0] == b'(' {
         let (input, sexp) = sexp_in_list(input)?;
-        let (input, _) = space_or_comments(input)?;
+        let (input, ()) = space_or_comments(input)?;
         Ok((input, sexp))
     } else {
         let (input, sexp) = atom(input)?;
-        let (input, _) = space_or_comments(input)?;
+        let (input, ()) = space_or_comments(input)?;
         Ok((input, sexp))
     }
 }
 
 /// Deserialize a Sexp from bytes, returning both the sexp and the remaining
 /// bytes.
-pub fn from_slice_allow_remaining<T: AsRef<[u8]> + ?Sized>(input: &T) -> Res<&[u8], Sexp> {
+pub fn from_slice_allow_remaining<T: AsRef<[u8]> + ?Sized>(input: &T) -> Res<Sexp> {
     let input = input.as_ref();
-    let (input, _) = space_or_comments(input)?;
+    let (input, ()) = space_or_comments(input)?;
     sexp_no_leading_blank(input)
 }
 
@@ -244,16 +243,13 @@ pub fn from_slice_allow_remaining<T: AsRef<[u8]> + ?Sized>(input: &T) -> Res<&[u
 ///
 /// This deserialization can fail if the bytes do not follow the expected
 /// sexp format.
-pub fn from_slice<T: AsRef<[u8]> + ?Sized>(input: &T) -> Result<Sexp, nom::Err<Error<&[u8]>>> {
+pub fn from_slice<T: AsRef<[u8]> + ?Sized>(input: &T) -> Result<Sexp, Error> {
     let input = input.as_ref();
     let (remaining, sexp) = from_slice_allow_remaining(input)?;
     if remaining.is_empty() {
         Ok(sexp)
     } else {
-        Err(nom::Err::Failure(Error::from_error_kind(
-            remaining,
-            ErrorKind::Eof,
-        )))
+        Err(Error::UnexpectedEof)
     }
 }
 
@@ -272,19 +268,19 @@ pub fn from_slice<T: AsRef<[u8]> + ?Sized>(input: &T) -> Result<Sexp, nom::Err<E
 /// This deserialization can fail if the bytes do not follow the expected
 /// sexp format.
 
-pub fn from_slice_multi<T: AsRef<[u8]> + ?Sized>(
-    input: &T,
-) -> Result<Vec<Sexp>, nom::Err<Error<&[u8]>>> {
+pub fn from_slice_multi<T: AsRef<[u8]> + ?Sized>(input: &T) -> Result<Vec<Sexp>, Error> {
     let input = input.as_ref();
-    let (input, _) = space_or_comments(input)?;
-    let (remaining, sexps) = many0(sexp_no_leading_blank)(input)?;
-    if remaining.is_empty() {
+    let (input, ()) = space_or_comments(input)?;
+    let mut input = input;
+    let mut sexps = vec![];
+    while let Ok((next_input, sexp)) = sexp_no_leading_blank(input) {
+        input = next_input;
+        sexps.push(sexp)
+    }
+    if input.is_empty() {
         Ok(sexps)
     } else {
-        Err(nom::Err::Failure(Error::from_error_kind(
-            remaining,
-            ErrorKind::Eof,
-        )))
+        Err(Error::UnexpectedEof)
     }
 }
 
