@@ -171,8 +171,12 @@ fn quoted_string(input: &[u8]) -> Res<Vec<u8>> {
     Err(Error::UnexpectedEofInString)
 }
 
+fn first_char_is(c: u8, input: &[u8]) -> bool {
+    input.first().map(|x| *x == c).unwrap_or(false)
+}
+
 fn char(c: u8, input: &[u8]) -> Res<()> {
-    if !input.is_empty() && input[0] == c {
+    if first_char_is(c, input) {
         Ok((&input[1..], ()))
     } else {
         Err(Error::UnexpectedEof)
@@ -180,7 +184,7 @@ fn char(c: u8, input: &[u8]) -> Res<()> {
 }
 
 fn atom(input: &[u8]) -> Res<Sexp> {
-    let (next_input, atom) = if !input.is_empty() && input[0] == b'"' {
+    let (next_input, atom) = if first_char_is(b'"', input) {
         let (input, ()) = char(b'"', input)?;
         let (input, atom) = quoted_string(input)?;
         let (input, ()) = char(b'"', input)?;
@@ -208,7 +212,7 @@ fn sexp_in_list(input: &[u8]) -> Res<Sexp> {
 // separated_list combinator does not seem to handle separators that
 // can be empty.
 fn sexp_no_leading_blank(input: &[u8]) -> Res<Sexp> {
-    if !input.is_empty() && input[0] == b'(' {
+    if first_char_is(b'(', input) {
         let (input, sexp) = sexp_in_list(input)?;
         let (input, ()) = space_or_comments(input)?;
         Ok((input, sexp))
