@@ -1,6 +1,6 @@
 [package]
 name = "rsexp-derive"
-version = "0.2.2"
+version = "0.2.3"
 authors = ["laurent <laurent.mazare@gmail.com>"]
 edition = "2021"
 
