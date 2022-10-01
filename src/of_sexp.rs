@@ -5,7 +5,7 @@ use std::collections::{BTreeMap, HashMap};
 
 /// Errors that could be generated when converting a Sexp to a specific
 /// type.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum IntoSexpError {
     Utf8Error(std::str::Utf8Error),
     FromUtf8Error(std::string::FromUtf8Error),
