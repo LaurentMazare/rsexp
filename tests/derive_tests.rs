@@ -1,3 +1,4 @@
+#![allow(clippy::approx_constant)]
 use rsexp::{IntoSexpError, OfSexp, SexpOf};
 use rsexp_derive::{OfSexp, SexpOf};
 use std::collections::BTreeMap;

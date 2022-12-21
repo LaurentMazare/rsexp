@@ -54,7 +54,7 @@ impl Print {
         } else {
             sexp.write_hum(&mut std::io::stdout())?;
         }
-        println!("");
+        println!();
         Ok(())
     }
 }
@@ -66,7 +66,7 @@ fn cnt_loop(s: &Sexp) -> (usize, usize) {
             let mut cnt_atoms = 0;
             let mut cnt_bytes = 0;
             for elem in list.iter() {
-                let (tmp_atoms, tmp_bytes) = cnt_loop(&elem);
+                let (tmp_atoms, tmp_bytes) = cnt_loop(elem);
                 cnt_atoms += tmp_atoms;
                 cnt_bytes += tmp_bytes;
             }

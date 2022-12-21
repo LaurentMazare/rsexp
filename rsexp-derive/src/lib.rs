@@ -94,7 +94,7 @@ fn impl_sexp_of(ast: &DeriveInput) -> TokenStream {
             }
         }
         syn::Data::Union(DataUnion { union_token, .. }) => {
-            return syn::Error::new_spanned(&union_token, "union is not supported")
+            return syn::Error::new_spanned(union_token, "union is not supported")
                 .to_compile_error()
                 .into();
         }
@@ -189,14 +189,14 @@ fn impl_of_sexp(ast: &DeriveInput) -> TokenStream {
     let of_sexp_fn = match data {
         syn::Data::Struct(s) => match &s.fields {
             syn::Fields::Named(f) => {
-                let result = impl_named_struct_of_sexp(&f, quote! {#ident});
+                let result = impl_named_struct_of_sexp(f, quote! {#ident});
                 quote! {
                     let __fields = __s.extract_list(#ident_str)?;
                     #result
                 }
             }
             syn::Fields::Unnamed(f) => {
-                let result = impl_unnamed_struct_of_sexp(&f, quote! {#ident});
+                let result = impl_unnamed_struct_of_sexp(f, quote! {#ident});
                 quote! {
                     let __fields = __s.extract_list(#ident_str)?;
                     #result
@@ -213,10 +213,10 @@ fn impl_of_sexp(ast: &DeriveInput) -> TokenStream {
                 );
                 let branch = match &variant.fields {
                     syn::Fields::Named(f) => {
-                        impl_named_struct_of_sexp(&f, quote! {#ident::#variant_ident})
+                        impl_named_struct_of_sexp(f, quote! {#ident::#variant_ident})
                     }
                     syn::Fields::Unnamed(f) => {
-                        impl_unnamed_struct_of_sexp(&f, quote! {#ident::#variant_ident})
+                        impl_unnamed_struct_of_sexp(f, quote! {#ident::#variant_ident})
                     }
                     syn::Fields::Unit => quote! {#ident::#variant_ident},
                 };
@@ -238,7 +238,7 @@ fn impl_of_sexp(ast: &DeriveInput) -> TokenStream {
             }
         }
         syn::Data::Union(DataUnion { union_token, .. }) => {
-            return syn::Error::new_spanned(&union_token, "union is not supported")
+            return syn::Error::new_spanned(union_token, "union is not supported")
                 .to_compile_error()
                 .into();
         }
