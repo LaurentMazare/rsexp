@@ -192,8 +192,8 @@ impl Sexp {
             }
         }
 
-        fn write_loop<'a, W: Write>(
-            s: &EscapedSexpWithSize<'a>,
+        fn write_loop<W: Write>(
+            s: &EscapedSexpWithSize<'_>,
             first_elem: bool,
             indent_level: usize,
             already_written_on_line: &mut usize,
