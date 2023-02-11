@@ -34,7 +34,7 @@ fn test_err<T: OfSexp>(str: &str, expected_err: IntoSexpError) {
     let sexp = rsexp::from_slice(str).unwrap();
     let t_or_err: Result<T, IntoSexpError> = sexp.of_sexp();
     let err = match t_or_err {
-        Ok(_) => panic!("expected an error, got a value {}", str),
+        Ok(_) => panic!("expected an error, got a value {str}"),
         Err(err) => err,
     };
     assert_eq!(err, expected_err)

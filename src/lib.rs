@@ -296,6 +296,6 @@ impl std::fmt::Display for Sexp {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let bytes = self.to_bytes();
         let cow = String::from_utf8_lossy(&bytes);
-        write!(f, "{}", cow)
+        write!(f, "{cow}")
     }
 }

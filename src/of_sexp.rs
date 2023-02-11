@@ -25,7 +25,7 @@ pub enum IntoSexpError {
 
 impl std::fmt::Display for IntoSexpError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }
 
@@ -137,7 +137,7 @@ where
         let atom = s.extract_atom("stringable")?;
         let atom = std::str::from_utf8(atom)?;
         T::from_str(atom).map_err(|err| {
-            let err = format!("{}", err);
+            let err = format!("{err}");
             IntoSexpError::StringConversionError { err }
         })
     }
