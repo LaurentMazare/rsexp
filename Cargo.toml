@@ -16,7 +16,7 @@ members = ["rsexp-derive"]
 [dev-dependencies]
 quickcheck = "1"
 quickcheck_macros = "1"
-clap = { version = "3.0.0", features = ["derive"] }
+clap = { version = "4", features = ["derive"] }
 tracing = "0.1"
 tracing-subscriber = "0.2"
 rsexp-derive = { version = "0.2.3", path = "rsexp-derive" }
