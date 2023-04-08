@@ -218,7 +218,9 @@ fn impl_of_sexp(ast: &DeriveInput) -> TokenStream {
                     syn::Fields::Unnamed(f) => {
                         impl_unnamed_struct_of_sexp(f, quote! {#ident::#variant_ident})
                     }
-                    syn::Fields::Unit => quote! {#ident::#variant_ident},
+                    syn::Fields::Unit => {
+                        quote! {::core::result::Result::Ok(#ident::#variant_ident)}
+                    }
                 };
                 quote! {
                     (#variant_bytes, __fields) => {

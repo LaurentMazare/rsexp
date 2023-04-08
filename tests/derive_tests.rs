@@ -198,7 +198,8 @@ struct StructXY {
 
 #[derive(SexpOf, Debug, PartialEq)]
 enum MyEnum {
-    A(),
+    A,
+    AEmptyTuple(),
     AEmptyStruct {},
     B(()),
     C(i64),
@@ -211,7 +212,8 @@ enum MyEnum {
 
 #[test]
 fn my_enum() {
-    test_bytes(MyEnum::A(), "A");
+    test_bytes(MyEnum::A, "A");
+    test_bytes(MyEnum::AEmptyTuple(), "AEmptyTuple");
     test_bytes(MyEnum::AEmptyStruct {}, "AEmptyStruct");
     test_bytes(MyEnum::B(()), "(B ())");
     test_bytes(MyEnum::C(42), "(C 42)");
@@ -231,7 +233,8 @@ struct StructXYZ {
 
 #[derive(OfSexp, SexpOf, Debug, PartialEq, Eq)]
 enum MyEnum2 {
-    A(),
+    A,
+    AEmptyTuple(),
     AEmptyStruct {},
     B(()),
     C(i64),
@@ -243,7 +246,8 @@ enum MyEnum2 {
 
 #[test]
 fn my_enum2() {
-    test_rt(MyEnum2::A(), "A");
+    test_rt(MyEnum2::A, "A");
+    test_rt(MyEnum2::AEmptyTuple(), "AEmptyTuple");
     test_rt(MyEnum2::AEmptyStruct {}, "AEmptyStruct");
     test_rt(MyEnum2::B(()), "(B ())");
     test_rt(MyEnum2::C(42), "(C 42)");
